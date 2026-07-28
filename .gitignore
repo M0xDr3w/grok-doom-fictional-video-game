@@ -1,0 +1,11 @@
+.DS_Store
+*.log
+.vercel
+.netlify
+.wrangler
+node_modules/
+.idea/
+.vscode/
+*.swp
+.env
+.env.*
