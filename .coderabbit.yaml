@@ -1,0 +1,12 @@
+# https://docs.coderabbit.ai/getting-started/yaml-configuration
+language: en-US
+reviews:
+  profile: chill
+  high_level_summary: true
+  request_changes_workflow: false
+  review_status: true
+  path_filters:
+    - "!audio/**/*.wav"
+    - "!**/*.wav"
+chat:
+  auto_reply: true
