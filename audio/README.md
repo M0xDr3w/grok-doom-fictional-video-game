@@ -62,7 +62,15 @@ Then open: http://localhost:8765/
 
 | Type | Tries first | Fallback |
 |------|-------------|----------|
-| SFX | `sfx/<name>.wav` then `.ogg` then `.mp3` | Web Audio beep/noise |
+| SFX | Decode to `AudioBuffer` (`sfx/<name>.{wav,ogg,mp3}`) | HTMLAudio clone, then Web Audio beep/noise |
 | Music | `music/<basename>.{ogg,mp3,wav}` | Procedural techno sequencer |
+
+Playback features (runtime):
+
+- SFX bus + soft master compressor (with music)
+- Pitch / volume micro-variation on repeated shots
+- Stereo pan + distance falloff for world SFX (hits, kills, growls, explosions)
+- Combat music duck (nearby enemies + short duck after loud SFX)
+- Low-HP heartbeat thump (pairs with DualSense rumble)
 
 Mute (**M** / Create) silences both file audio and synth.

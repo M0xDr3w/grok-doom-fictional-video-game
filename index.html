@@ -196,7 +196,11 @@
     width: 12px; height: 12px;
     transform: translate(-50%, -50%);
     pointer-events: none;
+    transition: transform 0.05s ease-out, filter 0.05s;
   }
+  #cross.fire { transform: translate(-50%, -50%) scale(1.35); filter: brightness(1.4); }
+  #cross.hit { filter: drop-shadow(0 0 4px #ff3a3a) brightness(1.6); }
+  #cross.hit.crit { filter: drop-shadow(0 0 6px #ffb020) brightness(1.8); }
   #cross::before, #cross::after {
     content: "";
     position: absolute;
@@ -465,7 +469,7 @@
 </head>
 <body>
 <button type="button" id="fsBtn" title="Maximize game frame (Esc to exit)">⛶ FULLSCREEN</button>
-<button type="button" id="ds5Btn" title="Enable DualSense adaptive triggers (WebHID)">DS5 TRIGGERS</button>
+<button type="button" id="ds5Btn" title="Enable DualSense haptics + adaptive triggers (Chrome WebHID)">DS5 HAPTICS</button>
 <div id="wrap">
   <h1>GROK <span>DOOM</span></h1>
   <div id="stage">
@@ -483,14 +487,14 @@
         <b id="weaponName">SHOTGUN</b>
         <span class="sub" id="ammoLine">AMMO ∞</span>
       </div>
-      <div class="stat">
+      <div class="stat" id="statKills">
         <span class="label">KILLS</span>
         <b id="kills">0</b>
-        <span class="sub">OF <span id="total">0</span></span>
+        <span class="sub" id="aliveLine"><span id="aliveCount">0</span> ALIVE</span>
       </div>
       <div class="stat" id="statBest">
-        <span class="label">HIGH SCORE</span>
-        <b id="best">0</b>
+        <span class="label">PROGRESS</span>
+        <b id="progMain">WAVE 1</b>
         <span class="sub" id="resLine">RES 480×300</span>
       </div>
     </div>
@@ -499,8 +503,8 @@
       <h2 id="msgTitle">GROK DOOM</h2>
       <p id="msgBody">Clear Hell Arena. Survive the Hell Lord. Conquer the Iron Citadel.</p>
       <div class="blurb" id="msgBlurb">
-        Hell Arena → 15 kills → Hell Lord → Iron Citadel (4 waves)<br>
-        1–5 HP · L2 aim · R2 shoot · flanks, vaults &amp; risk loot
+        Hell Arena → 15 kills → Hell Lord (3 phases) → Iron Citadel (4 waves)<br>
+        Imp charges · Caco snipes · Baron tanks · L2 aim · R2 shoot
       </div>
       <div id="msgScore" class="stats" style="display:none"></div>
       <div id="msgRecord" class="record" style="display:none"></div>
@@ -508,8 +512,9 @@
         <b style="color:var(--amber)">Keyboard</b><br>
         WASD move · Space jump · Click shoot · RMB/F aim · 1-3 / Q-E weapons<br>
         T soundtrack · [ ] res · P auto quality · R restart<br>
-        <b style="color:var(--amber)">DualSense</b><br>
-        L stick move · R stick look · L2 aim · R2/□ shoot · ✕ jump · ○/R1 weapons
+        <b style="color:var(--amber)">DualSense — best way to play</b><br>
+        Full haptics + adaptive triggers · L stick move · R stick look · L2 aim · R2/□ shoot<br>
+        Click <b>DS5 HAPTICS</b> (Chrome) once to enable WebHID
       </div>
       <div class="btn-row">
         <button type="button" id="startBtn">ENTER THE ARENA</button>
@@ -517,7 +522,7 @@
       </div>
     </div>
   </div>
-  <footer>Hell Arena (15 kills → Lord) → Iron Citadel (4 waves → Boss) · <kbd>L2</kbd> aim · <kbd>R2</kbd> fire · <kbd>T</kbd> music</footer>
+  <footer>Hell Arena (15 kills → Lord · 3 phases) → Iron Citadel (4 waves) · progress bar under HP · <kbd>L2</kbd> aim · <kbd>R2</kbd> fire</footer>
 </div>
 <script>
 (() => {
@@ -618,7 +623,7 @@
         DS5.device = null;
         if (ds5Btn) {
           ds5Btn.classList.remove("on");
-          ds5Btn.textContent = "DS5 TRIGGERS";
+          ds5Btn.textContent = "DS5 HAPTICS";
         }
         killMsgs.unshift({ text: "DS5 DISCONNECTED", t: 2 });
       }
@@ -745,12 +750,12 @@
       maxWaves: 6,
       // Escalation toward the lord (boss still triggers on kill count)
       waveTable: [
-        { imps: 5, cacos: 1, barons: 0 },
         { imps: 6, cacos: 1, barons: 0 },
-        { imps: 5, cacos: 2, barons: 0 },
-        { imps: 6, cacos: 2, barons: 1 },
+        { imps: 7, cacos: 2, barons: 0 },
         { imps: 7, cacos: 2, barons: 1 },
-        { imps: 6, cacos: 3, barons: 1 },
+        { imps: 8, cacos: 3, barons: 1 },
+        { imps: 8, cacos: 3, barons: 1 },
+        { imps: 8, cacos: 4, barons: 2 },
       ],
       // Rooms: S yard (y14) · gate (y12) · ring (y6–10) · W/E galleries · N altar (y1–3)
       map: [
@@ -850,10 +855,10 @@
       bossAtKills: 999,
       maxWaves: 4,
       waveTable: [
-        { imps: 6, cacos: 1, barons: 0 },
-        { imps: 6, cacos: 2, barons: 1 },
-        { imps: 7, cacos: 2, barons: 1 },
-        { imps: 6, cacos: 3, barons: 2 },
+        { imps: 7, cacos: 2, barons: 0 },
+        { imps: 8, cacos: 2, barons: 1 },
+        { imps: 8, cacos: 3, barons: 1 },
+        { imps: 8, cacos: 4, barons: 2 },
       ],
       map: [
         [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
@@ -1981,21 +1986,40 @@
   // Muzzle flash sits at the far tip of the barrels (into the world)
   const GUN_MUZZLE = { x: 38, y: 5 };
 
-  // ---------- audio (Web Audio synth, no assets) ----------
+  // ---------- audio (Web Audio mixer + file assets + synth fallback) ----------
   let audioCtx = null;
   let muted = false;
   let musicGain = null;
+  let sfxGain = null;       // SFX bus
+  let masterComp = null;    // gentle glue so gunfights don't clip
   let musicPlaying = false;
   let musicTimer = null;
   let musicStep = 0;
+  let lastSfxDuckT = 0;     // temporary music duck after loud SFX
+  let hbAudioT = 0;         // low-HP audio heartbeat phase
 
   function ensureAudio() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === "suspended") audioCtx.resume();
+    if (!masterComp) {
+      // Soft limiter / glue — keeps stacked SFX + music from harsh clipping
+      masterComp = audioCtx.createDynamicsCompressor();
+      masterComp.threshold.value = -18;
+      masterComp.knee.value = 18;
+      masterComp.ratio.value = 4;
+      masterComp.attack.value = 0.003;
+      masterComp.release.value = 0.18;
+      masterComp.connect(audioCtx.destination);
+    }
     if (!musicGain) {
       musicGain = audioCtx.createGain();
       musicGain.gain.value = muted ? 0 : 0.14;
-      musicGain.connect(audioCtx.destination);
+      musicGain.connect(masterComp);
+    }
+    if (!sfxGain) {
+      sfxGain = audioCtx.createGain();
+      sfxGain.gain.value = muted ? 0 : 1;
+      sfxGain.connect(masterComp);
     }
     return audioCtx;
   }
@@ -2024,7 +2048,8 @@
     { id: "crimson", title: "CRIMSON DRONE", base: "music/crimson-drone" },
     { id: "ash", title: "ASH CHOIR", base: "music/ash-choir" },
   ];
-  const sfxAssets = Object.create(null);
+  const sfxAssets = Object.create(null);   // HTMLAudioElement templates (fallback)
+  const sfxBuffers = Object.create(null);  // AudioBuffer for low-latency + rate/pan
   const trackBuffers = Object.create(null); // id -> AudioBuffer
   let trackIndex = Math.max(0, TRACKS.findIndex((t) => t.id === DEFAULT_TRACK_ID));
   let musicMenuOpen = false;
@@ -2035,10 +2060,11 @@
   let musicUsingFile = false;
   let assetsLoadPromise = null;
   let assetsStatus = { sfx: 0, music: false, tracks: 0 };
-  const MUSIC_FILE_VOL = 0.42;
+  const MUSIC_FILE_VOL = 0.40;
   const MUSIC_SYNTH_VOL = 0.14;
-  const MUSIC_COMBAT_DUCK = 0.48; // multiply bed under combat so SFX cut through
+  const MUSIC_COMBAT_DUCK = 0.38; // multiply bed under combat so SFX cut through
   let combatDuck = 0; // 0 calm … 1 combat
+  let sfxBurstDuck = 0; // extra duck after loud SFX (0–1)
 
   function currentTrack() { return TRACKS[trackIndex] || TRACKS[0]; }
   function availableTrackIds() {
@@ -2051,11 +2077,22 @@
   function applyMusicVolume() {
     if (!musicGain) return;
     if (muted) { musicGain.gain.value = 0; return; }
+    // Combat proximity duck + short post-gunfire punch duck
     const duck = 1 - combatDuck * (1 - MUSIC_COMBAT_DUCK);
-    musicGain.gain.value = musicBaseVol() * duck;
+    const burst = 1 - sfxBurstDuck * 0.35;
+    musicGain.gain.value = musicBaseVol() * duck * burst;
+  }
+  function applySfxVolume() {
+    if (!sfxGain) return;
+    sfxGain.gain.value = muted ? 0 : 1;
   }
   function setMuted(m) {
     muted = m;
+    applyMusicVolume();
+    applySfxVolume();
+  }
+  function pokeMusicDuck(amount = 0.55) {
+    sfxBurstDuck = Math.max(sfxBurstDuck, Math.min(1, amount));
     applyMusicVolume();
   }
   function updateCombatDuck(dt) {
@@ -2063,15 +2100,35 @@
     for (const e of enemies) {
       if (!e.alive) continue;
       const d = Math.hypot(e.x - player.x, e.y - player.y);
-      if (d < 11) threat = Math.max(threat, 1 - d / 11);
-      if (e.boss) threat = Math.max(threat, 0.85);
-      if (e.chargeT != null) threat = Math.max(threat, 0.7);
+      if (d < 12) threat = Math.max(threat, 1 - d / 12);
+      if (e.boss) threat = Math.max(threat, 0.9);
+      if (e.chargeT != null) threat = Math.max(threat, 0.75);
     }
-    if (projectiles.length > 0) threat = Math.max(threat, 0.45);
-    if (bossPhase) threat = Math.max(threat, 0.75);
-    const k = 1 - Math.exp(-dt * 3.5);
+    if (projectiles.length > 0) threat = Math.max(threat, 0.5);
+    if (bossPhase) threat = Math.max(threat, 0.8);
+    if (muzzle > 0.05) threat = Math.max(threat, 0.55);
+    const k = 1 - Math.exp(-dt * 4.2);
     combatDuck += (threat - combatDuck) * k;
+    // Release short SFX duck
+    if (sfxBurstDuck > 0) {
+      sfxBurstDuck = Math.max(0, sfxBurstDuck - dt * 1.8);
+    }
     applyMusicVolume();
+  }
+
+  /** Stereo pan from world delta relative to player facing (−1 left … +1 right). */
+  function panFromWorld(wx, wy) {
+    const dx = wx - player.x, dy = wy - player.y;
+    const rightX = -Math.sin(player.a), rightY = Math.cos(player.a);
+    const side = dx * rightX + dy * rightY;
+    const dist = Math.hypot(dx, dy) || 0.001;
+    return Math.max(-0.9, Math.min(0.9, (side / dist) * 0.85));
+  }
+  function distAtten(wx, wy, maxDist = 12) {
+    const d = Math.hypot(wx - player.x, wy - player.y);
+    if (d >= maxDist) return 0;
+    const t = 1 - d / maxDist;
+    return t * t; // quadratic falloff — near sounds dominate
   }
 
   function loadAudioEl(url) {
@@ -2130,17 +2187,44 @@
     return null;
   }
 
+  async function loadSfxBuffer(rel) {
+    try {
+      const safe = safeAudioRel(rel);
+      if (!safe) return null;
+      ensureAudio();
+      const res = await fetch(AUDIO_BASE + safe, { cache: "force-cache" });
+      if (!res.ok) return null;
+      const arr = await res.arrayBuffer();
+      if (arr.byteLength > 2 * 1024 * 1024) return null;
+      return await audioCtx.decodeAudioData(arr.slice(0));
+    } catch (_) {
+      return null;
+    }
+  }
+
   function preloadAudioAssets() {
     if (assetsLoadPromise) return assetsLoadPromise;
     assetsLoadPromise = (async () => {
+      ensureAudio();
       let sfxOk = 0;
       await Promise.all(SFX_NAMES.map(async (name) => {
+        // Prefer AudioBuffer (rate/pan/low latency); keep HTMLAudio as fallback
         for (const ext of ["wav", "ogg", "mp3"]) {
-          const el = await loadAudioEl(`sfx/${name}.${ext}`);
-          if (el) {
-            sfxAssets[name] = el;
+          const abuf = await loadSfxBuffer(`sfx/${name}.${ext}`);
+          if (abuf && abuf.duration > 0.01) {
+            sfxBuffers[name] = abuf;
             sfxOk++;
             break;
+          }
+        }
+        if (!sfxBuffers[name]) {
+          for (const ext of ["wav", "ogg", "mp3"]) {
+            const el = await loadAudioEl(`sfx/${name}.${ext}`);
+            if (el) {
+              sfxAssets[name] = el;
+              sfxOk++;
+              break;
+            }
           }
         }
       }));
@@ -2212,19 +2296,77 @@
     killMsgs.unshift({ text: "NO MUSIC FILES", t: 2 });
   }
 
-  /** Play file SFX if present. Returns true if played from file. */
-  function playSfxFile(name, volume = 0.55) {
+  /**
+   * Play an SFX from buffer (preferred) or HTMLAudio fallback.
+   * opts: { vol, rate, pan, duck, x, y, maxDist }
+   * Returns true if a file asset was used.
+   */
+  function playSfx(name, opts = {}) {
     if (muted) return true;
+    let vol = opts.vol != null ? opts.vol : 0.55;
+    let rate = opts.rate != null ? opts.rate : 1;
+    let pan = opts.pan != null ? opts.pan : 0;
+    if (opts.x != null && opts.y != null) {
+      const atten = distAtten(opts.x, opts.y, opts.maxDist || 12);
+      if (atten <= 0.02) return true; // out of range — silence is fine
+      vol *= atten;
+      pan = panFromWorld(opts.x, opts.y);
+    }
+    // Micro-variation so repeated fire doesn't sound like a sample loop
+    if (opts.vary !== false) {
+      rate *= 0.94 + Math.random() * 0.12;
+      vol *= 0.92 + Math.random() * 0.14;
+    }
+    vol = Math.max(0, Math.min(1, vol));
+    rate = Math.max(0.5, Math.min(2.2, rate));
+    pan = Math.max(-1, Math.min(1, pan));
+
+    if (opts.duck) pokeMusicDuck(opts.duck);
+
+    // Web Audio buffer path
+    const buf = sfxBuffers[name];
+    if (buf) {
+      try {
+        const ac = ensureAudio();
+        const src = ac.createBufferSource();
+        src.buffer = buf;
+        src.playbackRate.value = rate;
+        const g = ac.createGain();
+        g.gain.value = vol;
+        let node = g;
+        // StereoPanner when available; otherwise equal-power split
+        if (typeof ac.createStereoPanner === "function") {
+          const panner = ac.createStereoPanner();
+          panner.pan.value = pan;
+          src.connect(g);
+          g.connect(panner);
+          panner.connect(sfxGain || ac.destination);
+        } else {
+          src.connect(g);
+          g.connect(sfxGain || ac.destination);
+        }
+        src.start(0);
+        return true;
+      } catch (_) {}
+    }
+
+    // HTMLAudio fallback
     const tmpl = sfxAssets[name];
     if (!tmpl) return false;
     try {
       const a = tmpl.cloneNode();
-      a.volume = Math.max(0, Math.min(1, volume));
+      a.volume = vol;
+      a.playbackRate = rate;
       a.play().catch(() => {});
       return true;
     } catch (_) {
       return false;
     }
+  }
+
+  /** @deprecated use playSfx — kept for any external calls */
+  function playSfxFile(name, volume = 0.55) {
+    return playSfx(name, { vol: volume, vary: true });
   }
 
   function beep(opts) {
@@ -2242,7 +2384,7 @@
       filt.frequency.value = opts.filterFreq || 2000;
       gain.gain.setValueAtTime(opts.vol || 0.12, t0);
       gain.gain.exponentialRampToValueAtTime(0.001, t0 + (opts.dur || 0.1));
-      osc.connect(filt); filt.connect(gain); gain.connect(ac.destination);
+      osc.connect(filt); filt.connect(gain); gain.connect(sfxGain || ac.destination);
       osc.start(t0);
       osc.stop(t0 + (opts.dur || 0.1) + 0.02);
     } catch (_) {}
@@ -2266,8 +2408,30 @@
       const gain = ac.createGain();
       gain.gain.setValueAtTime(opts.vol || 0.25, t0);
       gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-      src.connect(filt); filt.connect(gain); gain.connect(ac.destination);
+      src.connect(filt); filt.connect(gain); gain.connect(sfxGain || ac.destination);
       src.start(t0);
+    } catch (_) {}
+  }
+
+  /** Low-HP heartbeat thump (synth) — pairs with DualSense heartbeat. */
+  function playHeartbeatThump() {
+    if (muted) return;
+    try {
+      const ac = ensureAudio();
+      const t0 = ac.currentTime;
+      const thump = (at, vol) => {
+        const osc = ac.createOscillator();
+        const g = ac.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(70, at);
+        osc.frequency.exponentialRampToValueAtTime(38, at + 0.09);
+        g.gain.setValueAtTime(vol, at);
+        g.gain.exponentialRampToValueAtTime(0.001, at + 0.12);
+        osc.connect(g); g.connect(sfxGain || ac.destination);
+        osc.start(at); osc.stop(at + 0.14);
+      };
+      thump(t0, 0.11);
+      thump(t0 + 0.1, 0.08);
     } catch (_) {}
   }
 
@@ -2442,68 +2606,90 @@
   }
 
   const SFX = {
-    // Weapon-aware gunfire: layered file SFX + richer synth fallback
+    // Weapon-aware gunfire: file buffer + light synth body + music duck
     shoot(kind) {
       const w = kind || (player && player.weapon) || "shotgun";
       if (w === "chaingun") {
-        if (playSfxFile("shoot-chaingun", 0.55)) return;
-        if (playSfxFile("shoot", 0.4)) return;
-        // snappy MG burst
+        if (playSfx("shoot-chaingun", { vol: 0.5, rate: 1.02, duck: 0.35 })
+          || playSfx("shoot", { vol: 0.38, rate: 1.15, duck: 0.3 })) {
+          // Thin shell layer under MG for density
+          noiseBurst({ dur: 0.035, freq: 2400, vol: 0.08, q: 1.1 });
+          return;
+        }
         noiseBurst({ dur: 0.06, freq: 2200, vol: 0.32, q: 0.9 });
         noiseBurst({ dur: 0.04, freq: 600, vol: 0.18, q: 0.6 });
         beep({ type: "square", freq: 220, freqEnd: 80, dur: 0.05, vol: 0.07, filterFreq: 900 });
+        pokeMusicDuck(0.35);
         return;
       }
       if (w === "rocket") {
-        if (playSfxFile("shoot-rocket", 0.65)) return;
-        if (playSfxFile("shoot", 0.45)) return;
+        if (playSfx("shoot-rocket", { vol: 0.7, duck: 0.65 })
+          || playSfx("shoot", { vol: 0.48, rate: 0.85, duck: 0.55 })) {
+          beep({ type: "sine", freq: 55, freqEnd: 30, dur: 0.18, vol: 0.05, filterFreq: 180 });
+          return;
+        }
         noiseBurst({ dur: 0.2, freq: 350, vol: 0.35, q: 0.5 });
         beep({ type: "sawtooth", freq: 110, freqEnd: 40, dur: 0.22, vol: 0.12, filterFreq: 400 });
         beep({ type: "sine", freq: 55, freqEnd: 30, dur: 0.28, vol: 0.1, filterFreq: 200 });
+        pokeMusicDuck(0.65);
         return;
       }
-      // Shotgun — boom + crack + short tail
-      if (playSfxFile("shoot", 0.72)) return;
+      // Shotgun — boom + crack
+      if (playSfx("shoot", { vol: 0.78, duck: 0.55 })) {
+        noiseBurst({ dur: 0.05, freq: 1600, vol: 0.1, q: 1.0 });
+        return;
+      }
       noiseBurst({ dur: 0.08, freq: 1800, vol: 0.38, q: 1.1 });
       noiseBurst({ dur: 0.16, freq: 500, vol: 0.28, q: 0.55 });
       beep({ type: "sawtooth", freq: 140, freqEnd: 45, dur: 0.14, vol: 0.12, filterFreq: 500 });
       beep({ type: "sine", freq: 70, freqEnd: 35, dur: 0.18, vol: 0.1, filterFreq: 250 });
+      pokeMusicDuck(0.55);
     },
-    hit() {
-      if (playSfxFile("hit", 0.5)) return;
+    hit(wx, wy) {
+      const o = { vol: 0.52, rate: 1.05, duck: 0.15 };
+      if (wx != null && wy != null) { o.x = wx; o.y = wy; o.maxDist = 14; }
+      if (playSfx("hit", o)) return;
       beep({ type: "square", freq: 320, freqEnd: 90, dur: 0.08, vol: 0.1 });
     },
-    kill() {
-      if (playSfxFile("kill", 0.55)) return;
+    kill(wx, wy) {
+      const o = { vol: 0.62, rate: 0.98, duck: 0.4 };
+      if (wx != null && wy != null) { o.x = wx; o.y = wy; o.maxDist = 16; }
+      if (playSfx("kill", o)) {
+        noiseBurst({ dur: 0.08, freq: 500, vol: 0.08, q: 0.7 });
+        return;
+      }
       beep({ type: "sawtooth", freq: 200, freqEnd: 40, dur: 0.25, vol: 0.12 });
       noiseBurst({ dur: 0.2, freq: 400, vol: 0.2 });
     },
     pain() {
-      if (playSfxFile("pain", 0.5)) return;
+      if (playSfx("pain", { vol: 0.58, rate: 0.95, duck: 0.45 })) return;
       beep({ type: "square", freq: 120, freqEnd: 60, dur: 0.15, vol: 0.15 });
+      pokeMusicDuck(0.4);
     },
-    explode() {
-      if (playSfxFile("explode", 0.7)) return;
+    explode(wx, wy) {
+      const o = { vol: 0.75, rate: 0.96, duck: 0.7 };
+      if (wx != null && wy != null) { o.x = wx; o.y = wy; o.maxDist = 18; }
+      if (playSfx("explode", o)) {
+        beep({ type: "sine", freq: 70, freqEnd: 30, dur: 0.2, vol: 0.06, filterFreq: 200 });
+        return;
+      }
       noiseBurst({ dur: 0.45, freq: 200, vol: 0.45, q: 0.4 });
       beep({ type: "sawtooth", freq: 90, freqEnd: 25, dur: 0.4, vol: 0.15, filterFreq: 300 });
+      pokeMusicDuck(0.7);
     },
-    // Dry click — empty mag / blocked fire
     empty() {
       beep({ type: "square", freq: 180, freqEnd: 90, dur: 0.04, vol: 0.08, filterFreq: 1200 });
       noiseBurst({ dur: 0.03, freq: 2500, vol: 0.08, q: 1.2 });
     },
-    // Shotgun pump / rack after blast
     rack() {
-      noiseBurst({ dur: 0.05, freq: 900, vol: 0.12, q: 0.8 });
-      beep({ type: "triangle", freq: 140, freqEnd: 70, dur: 0.07, vol: 0.06, filterFreq: 700 });
+      noiseBurst({ dur: 0.05, freq: 900, vol: 0.14, q: 0.8 });
+      beep({ type: "triangle", freq: 140, freqEnd: 70, dur: 0.07, vol: 0.07, filterFreq: 700 });
     },
-    // Chaingun spin-down / dry click
     click() {
       beep({ type: "square", freq: 420, freqEnd: 200, dur: 0.03, vol: 0.05, filterFreq: 2000 });
     },
-    // Wave clear sting
     waveClear() {
-      if (playSfxFile("wave", 0.45)) {
+      if (playSfx("wave", { vol: 0.5, rate: 1.05, duck: 0.25 })) {
         beep({ type: "sine", freq: 520, freqEnd: 780, dur: 0.12, vol: 0.07, filterFreq: 2000 });
         return;
       }
@@ -2511,50 +2697,59 @@
       beep({ type: "square", freq: 440, dur: 0.08, vol: 0.1, filterFreq: 1800 });
       beep({ type: "sine", freq: 660, freqEnd: 880, dur: 0.18, vol: 0.09, filterFreq: 2400 });
     },
-    // Boss intro sting
     boss() {
-      if (playSfxFile("growl", 0.65)) {
+      if (playSfx("growl", { vol: 0.72, rate: 0.85, duck: 0.55 })) {
         beep({ type: "sawtooth", freq: 70, freqEnd: 40, dur: 0.35, vol: 0.12, filterFreq: 300 });
         return;
       }
       noiseBurst({ dur: 0.35, freq: 180, vol: 0.35, q: 0.4 });
       beep({ type: "sawtooth", freq: 55, freqEnd: 28, dur: 0.45, vol: 0.16, filterFreq: 250 });
       beep({ type: "square", freq: 110, freqEnd: 55, dur: 0.25, vol: 0.08, filterFreq: 400 });
+      pokeMusicDuck(0.55);
     },
-    // Enemy shot telegraph chirp (quiet)
-    charge() {
+    // Enemy shot telegraph — optional world pos for spatial
+    charge(wx, wy) {
+      if (wx != null && wy != null) {
+        const a = distAtten(wx, wy, 10);
+        if (a < 0.08) return;
+        beep({ type: "sine", freq: 280, freqEnd: 520, dur: 0.12, vol: 0.035 * a, filterFreq: 1500 });
+        return;
+      }
       beep({ type: "sine", freq: 280, freqEnd: 520, dur: 0.12, vol: 0.04, filterFreq: 1500 });
     },
     wave() {
-      if (playSfxFile("wave", 0.5)) return;
+      if (playSfx("wave", { vol: 0.55, duck: 0.2 })) return;
       beep({ type: "square", freq: 440, dur: 0.08, vol: 0.1 });
       setTimeout(() => beep({ type: "square", freq: 660, dur: 0.1, vol: 0.1 }), 90);
       setTimeout(() => beep({ type: "square", freq: 880, dur: 0.14, vol: 0.1 }), 180);
     },
     win() {
-      if (playSfxFile("win", 0.5)) return;
+      if (playSfx("win", { vol: 0.55, vary: false, duck: 0.3 })) return;
       [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep({ type: "square", freq: f, dur: 0.15, vol: 0.1 }), i * 120));
     },
     die() {
-      if (playSfxFile("die", 0.55)) return;
+      if (playSfx("die", { vol: 0.62, rate: 0.95, duck: 0.5 })) return;
       beep({ type: "sawtooth", freq: 300, freqEnd: 40, dur: 0.6, vol: 0.18 });
       noiseBurst({ dur: 0.5, freq: 150, vol: 0.25 });
+      pokeMusicDuck(0.5);
     },
-    growl() {
-      if (playSfxFile("growl", 0.4)) return;
+    growl(wx, wy) {
+      const o = { vol: 0.45, rate: 0.9 + Math.random() * 0.15 };
+      if (wx != null && wy != null) { o.x = wx; o.y = wy; o.maxDist = 11; }
+      if (playSfx("growl", o)) return;
       beep({ type: "sawtooth", freq: 80, freqEnd: 55, dur: 0.2, vol: 0.06, filterFreq: 200 });
     },
     jump() {
-      if (playSfxFile("jump", 0.35)) return;
+      if (playSfx("jump", { vol: 0.38, rate: 1.05 })) return;
       beep({ type: "square", freq: 180, freqEnd: 90, dur: 0.06, vol: 0.05 });
     },
     splash() {
-      if (playSfxFile("splash", 0.45)) return;
+      if (playSfx("splash", { vol: 0.48 })) return;
       noiseBurst({ dur: 0.18, freq: 600, vol: 0.22, q: 0.6 });
       beep({ type: "sine", freq: 220, freqEnd: 90, dur: 0.12, vol: 0.06, filterFreq: 800 });
     },
     lava() {
-      if (playSfxFile("lava", 0.4)) return;
+      if (playSfx("lava", { vol: 0.42 })) return;
       noiseBurst({ dur: 0.2, freq: 250, vol: 0.2, q: 0.5 });
       beep({ type: "sawtooth", freq: 90, freqEnd: 50, dur: 0.15, vol: 0.07, filterFreq: 400 });
     },
@@ -2593,6 +2788,14 @@
   let jumpBuf = false; // edge-trigger jump
   let hurtFlash = 0;   // red damage punch (seconds)
   let armorFlash = 0;  // blue armor absorb flash
+  // Combat feel / DualSense juice
+  let hitmarkerT = 0;      // seconds remaining for hitmarker
+  let hitmarkerCrit = false;
+  let hitStop = 0;         // brief time-scale freeze on big hits/kills
+  let killPunch = 0;       // white kill flash (seconds)
+  let lowHpPulseT = 0;     // DualSense heartbeat cadence
+  let nearMissCd = 0;      // throttle near-miss haptics
+  let crossPulseT = 0;     // DOM crosshair fire/hit pulse
   let waveBanner = null; // { t, text, kind, sub }
   // Fallback if a level omits maxWaves (L2 boss after N waves)
   const MAX_WAVE_L2 = 4;
@@ -2727,6 +2930,156 @@
     } catch (_) {}
   }
 
+  // Unified combat haptics: Gamepad dual-rumble + DualSense WebHID motors/triggers
+  function feelPulseCross(kind) {
+    const el = document.getElementById("cross");
+    if (!el) return;
+    el.classList.remove("fire", "hit", "crit");
+    // reflow so repeat classes re-trigger
+    void el.offsetWidth;
+    if (kind === "fire") el.classList.add("fire");
+    else if (kind === "crit") el.classList.add("hit", "crit");
+    else if (kind === "hit") el.classList.add("hit");
+    crossPulseT = kind === "fire" ? 0.08 : 0.14;
+  }
+
+  function feelHitmarker(crit) {
+    hitmarkerT = crit ? 0.16 : 0.11;
+    hitmarkerCrit = !!crit;
+    feelPulseCross(crit ? "crit" : "hit");
+  }
+
+  /** @param {"hit"|"kill"|"hurt"|"armor"|"nearmiss"|"heartbeat"|"boss"|"connect"|"fire"} kind */
+  function feelHaptics(kind, intensity = 1) {
+    const k = Math.max(0.25, Math.min(1.6, intensity));
+    if (kind === "hit") {
+      padRumble(55 + 40 * k, 0.25 * k, 0.4 * k);
+      if (DS5.device && DS5.device.opened) {
+        ds5SetMotors(0.12 * k, 0.22 * k);
+        ds5Send().catch(() => {});
+        clearTimeout(DS5.clearT);
+        DS5.clearT = setTimeout(() => {
+          ds5SetMotors(0, 0);
+          ds5SetR2Feedback(0.2, 0.12);
+          ds5Send().catch(() => {});
+        }, 55);
+      }
+      return;
+    }
+    if (kind === "kill") {
+      padRumble(140 + 60 * k, 0.45 * k, 0.85 * k);
+      if (DS5.device && DS5.device.opened) {
+        ds5SetMotors(0.45 * k, 0.7 * k);
+        ds5SetR2Vibration(0.25, 0.55 * k, 28);
+        ds5Send().catch(() => {});
+        clearTimeout(DS5.clearT);
+        DS5.clearT = setTimeout(() => {
+          ds5ClearR2();
+          ds5SetMotors(0, 0);
+          ds5SetR2Feedback(0.2, 0.12);
+          ds5Send().catch(() => {});
+        }, 160);
+      }
+      return;
+    }
+    if (kind === "hurt") {
+      padRumble(100 + 70 * k, 0.55 * k, 0.75 * k);
+      if (DS5.device && DS5.device.opened) {
+        // Hard body slam + brief heavy R2 wall so damage is unmistakable
+        ds5SetMotors(0.55 * k, 0.85 * k);
+        ds5SetR2Weapon(0.15, 0.7, 0.55 * k);
+        DS5.l2 = [0x02, 0x20, 0xFF, (0x70 * k) | 0, 0, 0, 0, 0];
+        ds5Send().catch(() => {});
+        clearTimeout(DS5.clearT);
+        DS5.clearT = setTimeout(() => {
+          ds5ClearR2();
+          ds5ClearL2();
+          ds5AimLatched = false;
+          ds5SetMotors(0, 0);
+          ds5SetR2Feedback(0.2, 0.12);
+          ds5Send().catch(() => {});
+        }, 180);
+      }
+      return;
+    }
+    if (kind === "armor") {
+      padRumble(65, 0.2, 0.3);
+      if (DS5.device && DS5.device.opened) {
+        ds5SetMotors(0.18, 0.12);
+        ds5Send().catch(() => {});
+        clearTimeout(DS5.clearT);
+        DS5.clearT = setTimeout(() => {
+          ds5SetMotors(0, 0);
+          ds5Send().catch(() => {});
+        }, 70);
+      }
+      return;
+    }
+    if (kind === "nearmiss") {
+      padRumble(45, 0.15, 0.35);
+      if (DS5.device && DS5.device.opened) {
+        ds5SetMotors(0.08, 0.28);
+        ds5Send().catch(() => {});
+        clearTimeout(DS5.clearT);
+        DS5.clearT = setTimeout(() => {
+          ds5SetMotors(0, 0);
+          ds5Send().catch(() => {});
+        }, 50);
+      }
+      return;
+    }
+    if (kind === "heartbeat") {
+      // Double thump for low HP
+      padRumble(40, 0.15, 0.55);
+      if (DS5.device && DS5.device.opened) {
+        ds5SetMotors(0.35, 0.15);
+        ds5Send().catch(() => {});
+        setTimeout(() => {
+          if (!DS5.device || !DS5.device.opened) return;
+          ds5SetMotors(0.5, 0.2);
+          ds5Send().catch(() => {});
+          setTimeout(() => {
+            ds5SetMotors(0, 0);
+            ds5Send().catch(() => {});
+          }, 45);
+        }, 90);
+      }
+      return;
+    }
+    if (kind === "boss") {
+      padRumble(200, 0.5, 0.95);
+      if (DS5.device && DS5.device.opened) {
+        ds5SetMotors(0.6, 0.9);
+        ds5SetR2Vibration(0.3, 0.7, 22);
+        ds5Send().catch(() => {});
+        clearTimeout(DS5.clearT);
+        DS5.clearT = setTimeout(() => {
+          ds5ClearR2();
+          ds5SetMotors(0, 0);
+          ds5SetR2Feedback(0.2, 0.14);
+          ds5Send().catch(() => {});
+        }, 220);
+      }
+      return;
+    }
+    if (kind === "connect") {
+      padRumble(80, 0.3, 0.5);
+      if (DS5.device && DS5.device.opened) {
+        ds5SetMotors(0.3, 0.45);
+        ds5SetR2Weapon(0.2, 0.5, 0.35);
+        DS5.l2 = [0x02, 0x30, 0x90, 0x50, 0, 0, 0, 0];
+        ds5Send().catch(() => {});
+        setTimeout(() => {
+          ds5ClearL2();
+          ds5ClearR2();
+          ds5SetMotors(0, 0);
+          ds5SetR2Feedback(0.18, 0.14);
+          ds5Send().catch(() => {});
+        }, 200);
+      }
+    }
+  }
+
   // ---------- DualSense adaptive triggers (R2/L2 motors) via WebHID ----------
   // Gamepad API only does dual-rumble. Trigger actuators need HID output reports.
   const DS5_VID = 0x054c;
@@ -2797,10 +3150,11 @@
         btn.classList.add("on");
         btn.textContent = DS5.conn === "bluetooth" ? "DS5 BT ✓" : "DS5 USB ✓";
       }
-      killMsgs.unshift({ text: `DS5 TRIGGERS: ${DS5.conn.toUpperCase()}`, t: 3 });
-      // Very light R2 idle tension (just enough to feel “armed”)
+      killMsgs.unshift({ text: `DS5 HAPTICS: ${DS5.conn.toUpperCase()} · READY`, t: 3.2 });
+      // Idle arm tension + short connect test (motors + triggers)
       ds5SetR2Feedback(0.18, 0.14);
       ds5Send().catch(() => {});
+      setTimeout(() => feelHaptics("connect"), 40);
       return true;
     } catch (e) {
       console.warn("[ds5] open failed", e);
@@ -3012,16 +3366,16 @@
   const startBtn = document.getElementById("startBtn");
   const hpEl = document.getElementById("hp");
   const killsEl = document.getElementById("kills");
-  const totalEl = document.getElementById("total");
-  const bestEl = document.getElementById("best");
+  const progMainEl = document.getElementById("progMain");
+  const aliveCountEl = document.getElementById("aliveCount");
+  const aliveLineEl = document.getElementById("aliveLine");
   const killfeed = document.getElementById("killfeed");
   const weaponNameEl = document.getElementById("weaponName");
   const ammoLineEl = document.getElementById("ammoLine");
   const buffLineEl = document.getElementById("buffLine");
   const statHpEl = document.getElementById("statHp");
   const resLineEl = document.getElementById("resLine");
-  bestEl.textContent = String(highScore);
-  if (resLineEl) resLineEl.textContent = RES_PRESETS[resIdx].label;
+  if (resLineEl) resLineEl.textContent = `BEST ${highScore} · ${RES_PRESETS[resIdx].label}`;
 
   function cell(x, y) {
     const mx = x | 0, my = y | 0;
@@ -3270,14 +3624,29 @@
 
   function spawnEnemy(kind = "imp", opts = {}) {
     const p = randomEmpty();
-    // shootCd = seconds between shots for that demon (kept slow on purpose)
+    // Role kit:
+    //  imp  = charger (rush melee, short range, rare bolts)
+    //  caco = glass sniper (holds range, frequent shots, kites)
+    //  baron = tank (slow, multi-bolt, high HP)
     const base = kind === "baron"
-      ? { hp: 80, speed: 1.1, dmg: 2, r: 0.38, name: "BARON", score: 3, kind: "baron", sprites: SPR_BARON, rangeMin: 1.6, rangeMax: 7.5, shootCd: 3.6, projSpeed: 4.2, projDmg: 2 }
+      ? {
+          hp: 95, speed: 0.95, dmg: 2, r: 0.4, name: "BARON", score: 3, kind: "baron",
+          sprites: SPR_BARON, rangeMin: 2.0, rangeMax: 7.0, shootCd: 3.4, projSpeed: 3.9, projDmg: 2,
+          role: "tank", preferRange: 4.2, seeNeed: 0.55, meleeReach: 0.85, multiShot: true,
+        }
       : kind === "cacodemon"
-      ? { hp: 50, speed: 1.35, dmg: 1, r: 0.42, name: "CACO", score: 2, kind: "caco", sprites: SPR_CACO, rangeMin: 2.0, rangeMax: 8.5, shootCd: 3.2, projSpeed: 4.8, projDmg: 1 }
-      : { hp: 25, speed: 1.85, dmg: 1, r: 0.28, name: "IMP", score: 1, kind: "imp", sprites: SPR_IMP, rangeMin: 1.5, rangeMax: 7.0, shootCd: 2.9, projSpeed: 5.2, projDmg: 1 };
+      ? {
+          hp: 42, speed: 1.25, dmg: 1, r: 0.42, name: "CACO", score: 2, kind: "caco",
+          sprites: SPR_CACO, rangeMin: 3.0, rangeMax: 10.0, shootCd: 2.35, projSpeed: 5.4, projDmg: 1,
+          role: "sniper", preferRange: 6.5, seeNeed: 0.35, meleeReach: 0.55, multiShot: false,
+        }
+      : {
+          hp: 28, speed: 2.25, dmg: 1, r: 0.28, name: "IMP", score: 1, kind: "imp",
+          sprites: SPR_IMP, rangeMin: 0.9, rangeMax: 5.5, shootCd: 3.8, projSpeed: 5.0, projDmg: 1,
+          role: "charger", preferRange: 1.4, seeNeed: 0.25, meleeReach: 0.78, multiShot: false,
+        };
     if (opts.boss) {
-      base.hp = 200;
+      base.hp = 220;
       base.speed = 1.15;
       base.dmg = 2;
       base.r = 0.52;
@@ -3288,6 +3657,10 @@
       base.projDmg = 2;
       base.rangeMin = 1.2;
       base.rangeMax = 11;
+      base.role = "boss";
+      base.preferRange = 4;
+      base.seeNeed = 0.3;
+      base.meleeReach = 0.8;
     }
     // Later waves: slight bulk (fire rate stays mostly sane)
     if (!opts.boss && wave >= 3) {
@@ -3298,20 +3671,74 @@
     enemies.push({
       ...base, x: p.x, y: p.y, z: p.z, maxHp: base.hp, boss: !!opts.boss,
       // Long wind-up so the arena doesn't open with a fireball storm
-      attackCd: opts.boss ? 1.8 : (2.8 + Math.random() * 3.5),
+      attackCd: opts.boss ? 1.8 : (2.4 + Math.random() * 3.2),
       seeT: 0, // how long they've had continuous clear LOS
       frame: Math.random() * 2, bob: Math.random() * 6,
       strafe: Math.random() < 0.5 ? 1 : -1,
-      scaleMul: opts.boss ? 1.25 : undefined,
+      scaleMul: opts.boss ? 1.28 : (kind === "baron" ? 1.08 : undefined),
       // Boss-only combat state
       phase: 1,
       phaseAnnounced: false,
-      bossMove: null, // "bolt" | "multi" | "rush" | "slam"
+      phase3Announced: false,
+      bossMove: null, // "bolt" | "multi" | "rush" | "slam" | "nova"
       rushT: 0,
       slamT: 0,
+      novaT: 0,
       patternCd: opts.boss ? 1.2 : 0,
+      waveId: wave, // for mid-wave loot accounting
       alive: true, type: "enemy",
     });
+  }
+
+  function aliveEnemyCount() {
+    let n = 0;
+    for (const e of enemies) if (e.alive) n++;
+    return n;
+  }
+  function bossEnemy() {
+    for (const e of enemies) if (e.alive && e.boss) return e;
+    return null;
+  }
+  function killGateForLevel() {
+    const L = currentLevel();
+    return L.bossAtKills != null ? L.bossAtKills : BOSS_AT_KILLS;
+  }
+  function progressSnapshot() {
+    const L = currentLevel();
+    const alive = aliveEnemyCount();
+    const maxW = L.maxWaves || (levelIdx === 0 ? 6 : MAX_WAVE_L2);
+    if (bossPhase) {
+      const b = bossEnemy();
+      const hp01 = b ? Math.max(0, b.hp / (b.maxHp || 1)) : 0;
+      return {
+        mode: "boss",
+        title: b ? (b.phase >= 3 ? "FINAL FORM" : b.phase >= 2 ? "ENRAGED" : "HELL LORD") : "BOSS",
+        fill: hp01,
+        sub: b ? `HP ${Math.ceil(b.hp)}/${b.maxHp}` : "—",
+        alive,
+      };
+    }
+    if (levelIdx === 0) {
+      const gate = killGateForLevel();
+      const fill = Math.min(1, levelKills / Math.max(1, gate));
+      const need = Math.max(0, gate - levelKills);
+      return {
+        mode: "kills",
+        title: need > 0 ? `BOSS ${levelKills}/${gate}` : "BOSS READY",
+        fill,
+        sub: alive ? `${alive} ALIVE · W${wave}` : `W${wave} CLEAR`,
+        alive,
+      };
+    }
+    // Wave-clear campaign (citadel)
+    const fill = Math.min(1, (wave - 1 + (alive === 0 ? 1 : 0)) / Math.max(1, maxW));
+    return {
+      mode: "waves",
+      title: `WAVE ${wave}/${maxW}`,
+      fill: Math.min(1, wave / maxW),
+      sub: alive ? `${alive} LEFT` : "CLEAR",
+      alive,
+    };
   }
 
   // Strict clear LOS: dense wall samples + elevated floor blocking the shot path
@@ -3398,22 +3825,31 @@
     e.attackCd = (e.shootCd || 3) * (opts.cdMul || (0.9 + Math.random() * 0.35));
     e.seeT = 0;
     if (!e.boss) enemyShotGate = 0.55;
-    if (Math.random() < 0.45 || e.boss) SFX.growl();
+    if (Math.random() < 0.45 || e.boss) SFX.growl(e.x, e.y);
   }
 
-  // --- Hell Lord AI: telegraphed patterns + phase 2 ---
+  // --- Hell Lord AI: telegraphed patterns + phase 2/3 ---
   function bossPickMove(e, dist, clearView) {
     const p2 = e.phase >= 2;
+    const p3 = e.phase >= 3;
     const roll = Math.random();
     // Close range: prefer slam over spam-charge
-    if (dist < 2.2) return roll < 0.7 ? "slam" : "rush";
+    if (dist < 2.2) return roll < 0.65 ? "slam" : "rush";
+    if (p3 && roll < 0.22) return "nova";
     if (dist > 7.5 && clearView) return roll < 0.5 ? "multi" : "bolt";
     // Lost LOS: re-engage without always rush-charging
     if (!clearView) return roll < 0.45 ? "rush" : "bolt";
+    if (p3) {
+      if (roll < 0.28) return "multi";
+      if (roll < 0.48) return "slam";
+      if (roll < 0.62) return "nova";
+      if (roll < 0.75) return "rush";
+      return "bolt";
+    }
     if (p2) {
       if (roll < 0.32) return "multi";
       if (roll < 0.55) return "slam";
-      if (roll < 0.68) return "rush"; // less charge spam in phase 2
+      if (roll < 0.68) return "rush";
       return "bolt";
     }
     if (roll < 0.28) return "multi";
@@ -3427,25 +3863,32 @@
     e.chargeT = null;
     // No full-screen banners for attack telegraphs — world FX + short killfeed only
     if (move === "bolt") {
-      e.chargeT = e.phase >= 2 ? 0.4 : 0.5;
-      if (dist < 10) SFX.charge();
+      e.chargeT = e.phase >= 3 ? 0.32 : e.phase >= 2 ? 0.4 : 0.5;
+      if (dist < 10) SFX.charge(e.x, e.y);
     } else if (move === "multi") {
-      e.chargeT = e.phase >= 2 ? 0.65 : 0.8;
-      if (dist < 12) SFX.charge();
+      e.chargeT = e.phase >= 3 ? 0.5 : e.phase >= 2 ? 0.65 : 0.8;
+      if (dist < 12) SFX.charge(e.x, e.y);
       killMsgs.unshift({ text: "MULTI BOLT", t: 0.9 });
     } else if (move === "rush") {
-      e.rushT = e.phase >= 2 ? 1.15 : 0.95;
+      e.rushT = e.phase >= 3 ? 1.25 : e.phase >= 2 ? 1.15 : 0.95;
       e.flashT = 0.2;
-      SFX.growl();
-      // Short corner note only (was full-screen CHARGE / DODGE SIDEWAYS)
+      SFX.growl(e.x, e.y);
       killMsgs.unshift({ text: "CHARGE", t: 0.85 });
       padRumble(80, 0.2, 0.35);
     } else if (move === "slam") {
-      e.slamT = e.phase >= 2 ? 0.85 : 1.05;
+      e.slamT = e.phase >= 3 ? 0.75 : e.phase >= 2 ? 0.85 : 1.05;
       e.flashT = 0.25;
       SFX.boss();
       killMsgs.unshift({ text: "SLAM", t: 0.95 });
       padRumble(100, 0.3, 0.5);
+    } else if (move === "nova") {
+      // Phase 3 signature: wind-up then radial bolt ring
+      e.novaT = 0.95;
+      e.flashT = 0.35;
+      SFX.boss();
+      killMsgs.unshift({ text: "NOVA", t: 1.1 });
+      feelHaptics("boss");
+      padRumble(120, 0.35, 0.6);
     }
   }
 
@@ -3473,10 +3916,36 @@
         killMsgs.unshift({ text: "HELL LORD ENRAGED", t: 3 });
         SFX.boss();
         shake = Math.max(shake, 8);
+        feelHaptics("boss");
         padRumble(220, 0.55, 0.95);
         // Summon adds once
         for (let i = 0; i < 2; i++) spawnEnemy("imp");
         spawnEnemy("cacodemon");
+      }
+    }
+    // Phase 3 at 25% — final form
+    if (e.phase < 3 && e.hp <= e.maxHp * 0.25) {
+      e.phase = 3;
+      e.speed = 1.65;
+      e.shootCd = 1.05;
+      e.projSpeed = 6.4;
+      e.patternCd = 0.25;
+      if (!e.phase3Announced) {
+        e.phase3Announced = true;
+        pushBanner("FINAL FORM", { kind: "phase", t: 3.4, sub: "NO MERCY" });
+        killMsgs.unshift({ text: "FINAL FORM", t: 3.2 });
+        SFX.boss();
+        SFX.growl(e.x, e.y);
+        shake = Math.max(shake, 10);
+        feelHaptics("boss", 1.3);
+        hitStop = Math.max(hitStop, 0.08);
+        // Burst summon
+        spawnEnemy("imp");
+        spawnEnemy("imp");
+        spawnEnemy("cacodemon");
+        // Immediate nova threat
+        e.bossMove = "nova";
+        e.novaT = 0.7;
       }
     }
 
@@ -3522,6 +3991,55 @@
       return;
     }
 
+    // Phase 3 nova: long telegraph, then radial bolts
+    if (e.bossMove === "nova" && e.novaT > 0) {
+      e.novaT -= dt;
+      e.flashT = Math.max(e.flashT, 0.12);
+      const prog = 1 - Math.max(0, e.novaT) / 0.95;
+      // Rising orbit particles
+      if (Math.random() < 35 * dt) {
+        const a = time * 4 + Math.random() * Math.PI * 2;
+        const rr = 0.5 + prog * 1.8;
+        particles.push({
+          x: e.x + Math.cos(a) * rr, y: e.y + Math.sin(a) * rr,
+          z: (e.z || 0) + 0.3 + prog * 0.6,
+          vx: Math.cos(a) * 0.6, vy: Math.sin(a) * 0.6, vz: 0.8,
+          life: 0.25, color: [255, 80, 255], size: 2 + Math.random() * 2,
+        });
+      }
+      if (e.novaT <= 0) {
+        const bolts = e.phase >= 3 ? 10 : 8;
+        for (let i = 0; i < bolts; i++) {
+          spawnEnemyBolt(e, (i / bolts) * Math.PI * 2 + Math.random() * 0.08, {
+            speedMul: 0.85 + Math.random() * 0.2,
+            dmg: 1, life: 2.4, r: 0.11,
+            color: [255, 100, 255], glow: [200, 50, 255],
+          });
+        }
+        // Second delayed ring at phase 3
+        if (e.phase >= 3) {
+          for (let i = 0; i < 6; i++) {
+            spawnEnemyBolt(e, (i / 6) * Math.PI * 2 + 0.3, {
+              speedMul: 0.55, dmg: 1, life: 2.8, r: 0.1,
+              color: [180, 60, 255], glow: [140, 40, 255],
+            });
+          }
+        }
+        explosions.push({
+          x: e.x, y: e.y, t: 0, life: 0.35, r: 0.4,
+          intensity: 1.2, power: 0.7, silent: true,
+        });
+        SFX.explode(e.x, e.y);
+        shake = Math.max(shake, 11);
+        feelHaptics("boss");
+        e.bossMove = null;
+        e.patternCd = 1.0;
+        e.attackCd = 0.7;
+      }
+      e.z = floorH(e.x, e.y);
+      return;
+    }
+
     if (e.bossMove === "slam" && e.slamT > 0) {
       e.slamT -= dt;
       // Expanding ground ring telegraph
@@ -3559,7 +4077,7 @@
         addFloorDecal(e.x, e.y, "scorch");
         shake = Math.max(shake, 12);
         padRumble(220, 0.6, 1.0);
-        SFX.explode();
+        SFX.explode(e.x, e.y);
         if (dist < slamR && Math.abs((e.z || 0) - player.z) < 0.9) {
           damagePlayer(e.phase >= 2 ? 2 : 2);
           SFX.pain();
@@ -3657,7 +4175,7 @@
       damagePlayer(2);
       e.attackCd = e.phase >= 2 ? 0.85 : 1.1;
       SFX.pain();
-      SFX.growl();
+      SFX.growl(e.x, e.y);
       shake = Math.max(shake, 7);
       padRumble(120, 0.45, 0.85);
       updateHud();
@@ -3708,7 +4226,6 @@
       alive: true, type: "pickup", kind: "health",
       sprites: SPR_PICK_HEALTH, frame: 0, bob: 0, scaleMul: 0.45, label: "HEALTH +1",
     });
-    totalEl.textContent = String(enemies.filter(e => e.alive).length + kills);
     updateHud();
   }
 
@@ -3769,7 +4286,43 @@
         sprites: SPR_PICK_ARMOR, frame: 0, bob: 0, scaleMul: 0.45, label: "ARMOR +2",
       });
     }
-    totalEl.textContent = String(enemies.filter(e => e.alive).length + kills);
+    // Track how many started this wave for mid-wave supply drop
+    waveStartAlive = enemies.filter(e => e.alive).length;
+    waveLootDropped = false;
+    updateHud();
+  }
+
+  let waveStartAlive = 0;
+  let waveLootDropped = false;
+
+  function tryMidWaveLoot() {
+    if (waveLootDropped || bossPhase || !running || dead || won) return;
+    if (waveStartAlive < 4) return;
+    const alive = aliveEnemyCount();
+    // Drop when ~half the wave is gone
+    if (alive > waveStartAlive * 0.45) return;
+    waveLootDropped = true;
+    const spot = randomEmpty();
+    const kind = player.hp <= 2 ? "health" : (player.armor < 1 ? "armor" : (Math.random() < 0.5 ? "health" : "armor"));
+    pickups.push({
+      x: spot.x, y: spot.y, z: spot.z + 0.15, alive: true, type: "pickup", kind,
+      sprites: kind === "armor" ? SPR_PICK_ARMOR : SPR_PICK_HEALTH,
+      frame: 0, bob: 0, scaleMul: 0.5,
+      label: kind === "armor" ? "ARMOR DROP" : "HEALTH DROP",
+    });
+    // Small ammo help if using a limited gun
+    if (player.weapon === "chaingun" || player.weapon === "rocket") {
+      const spot2 = randomEmpty();
+      const ammoKind = player.weapon === "rocket" ? "rocket" : "chaingun";
+      pickups.push({
+        x: spot2.x, y: spot2.y, z: spot2.z + 0.15, alive: true, type: "pickup", kind: ammoKind,
+        sprites: ammoKind === "rocket" ? SPR_PICK_ROCKET : SPR_PICK_CHAINGUN,
+        frame: 0, bob: 0, scaleMul: 0.45,
+        label: ammoKind === "rocket" ? "ROCKETS" : "CHAINGUN",
+      });
+    }
+    killMsgs.unshift({ text: "SUPPLY DROP", t: 2.2 });
+    SFX.waveClear();
     updateHud();
   }
 
@@ -3969,6 +4522,8 @@
     kills = 0; levelKills = 0; wave = 0; won = false; dead = false; killMsgs = [];
     gunFrame = 0; gunKick = 0; gunPump = 0;
     hurtFlash = 0; armorFlash = 0; waveBanner = null; bossPhase = false;
+    hitmarkerT = 0; hitmarkerCrit = false; hitStop = 0; killPunch = 0;
+    lowHpPulseT = 0.5; nearMissCd = 0; crossPulseT = 0;
     runTime = 0; bossesKilled = 0; wavesCleared = 0;
     zoomAmt = 0; zoomTarget = 0;
     FOV = BASE_FOV; HALF_FOV = FOV / 2;
@@ -4006,7 +4561,6 @@
       newRecord = true;
       try { localStorage.setItem(HS_KEY, String(highScore)); } catch (_) {}
     }
-    if (bestEl) bestEl.textContent = String(highScore);
   }
 
   function updateHud() {
@@ -4018,7 +4572,14 @@
       statHpEl.classList.toggle("buff-active", player.buffs.rage > 0 || player.buffs.haste > 0 || player.armor > 0);
     }
     if (killsEl) killsEl.textContent = String(kills);
-    if (bestEl) bestEl.textContent = String(Math.max(highScore, kills));
+    const snap = progressSnapshot();
+    if (progMainEl) progMainEl.textContent = snap.title;
+    if (aliveCountEl) aliveCountEl.textContent = String(snap.alive);
+    if (aliveLineEl) {
+      aliveLineEl.textContent = snap.mode === "boss"
+        ? (snap.sub || "BOSS")
+        : `${snap.alive} ALIVE`;
+    }
     const w = WEAPONS[player.weapon] || WEAPONS.shotgun;
     if (weaponNameEl) weaponNameEl.textContent = w.name;
     if (ammoLineEl) {
@@ -4032,14 +4593,14 @@
     if (buffLineEl) {
       if (buffs.length) buffLineEl.textContent = buffs.join(" · ");
       else if (levelIdx === 0 && !bossPhase && !won) {
-        const need = Math.max(0, BOSS_AT_KILLS - levelKills);
+        const need = Math.max(0, killGateForLevel() - levelKills);
         buffLineEl.textContent = need > 0 ? `BOSS IN ${need}` : "BOSS READY";
-      } else if (bossPhase) buffLineEl.textContent = "BOSS FIGHT";
+      } else if (bossPhase) buffLineEl.textContent = snap.title || "BOSS FIGHT";
       else buffLineEl.textContent = `L${levelIdx + 1} ${currentLevel().name}`;
     }
     if (resLineEl) {
       const autoMark = AUTO_Q.on ? "A" : "M";
-      resLineEl.textContent = `L${levelIdx + 1}  ${RES_PRESETS[resIdx].label} ${autoMark}`;
+      resLineEl.textContent = `BEST ${Math.max(highScore, kills)} · ${RES_PRESETS[resIdx].label}${autoMark}`;
     }
     renderKillfeed();
   }
@@ -4129,6 +4690,51 @@
     drawText3(ox + ((bw - nw) / 2) | 0, barY + pipH + 3, num, hr, hg, hb, 1);
   }
 
+  // Objective bar under HP: boss meter / kill gate / wave progress
+  function drawProgressBar() {
+    if (!running && !dead) return;
+    const snap = progressSnapshot();
+    const bw = Math.min(W - 16, 120);
+    const bh = 16;
+    const ox = ((W - bw) / 2) | 0;
+    const oy = 42; // under HP plate
+    // Panel
+    for (let y = 0; y < bh; y++) {
+      for (let x = 0; x < bw; x++) {
+        const edge = x < 1 || y < 1 || x >= bw - 1 || y >= bh - 1;
+        const px = ox + x, py = oy + y;
+        if (px < 0 || py < 0 || px >= W || py >= H) continue;
+        if (edge) {
+          put(px, py, snap.mode === "boss" ? 180 : 140, snap.mode === "boss" ? 50 : 100, 40);
+        } else {
+          const i = (py * W + px) * 4;
+          buf[i] = (buf[i] * 0.3 + 14) | 0;
+          buf[i + 1] = (buf[i + 1] * 0.3 + 10) | 0;
+          buf[i + 2] = (buf[i + 2] * 0.3 + 12) | 0;
+        }
+      }
+    }
+    // Fill bar
+    const fillW = Math.max(0, Math.min(bw - 4, ((bw - 4) * snap.fill) | 0));
+    let fr = 220, fg = 180, fb_ = 50;
+    if (snap.mode === "boss") {
+      fr = 255; fg = snap.fill < 0.35 ? 60 : 90; fb_ = 50;
+    } else if (snap.mode === "waves") {
+      fr = 100; fg = 200; fb_ = 255;
+    } else {
+      fr = 255; fg = 200; fb_ = 60;
+    }
+    for (let y = 2; y < bh - 2; y++) {
+      for (let x = 2; x < 2 + fillW; x++) {
+        put(ox + x, oy + y, fr, fg, fb_);
+      }
+    }
+    // Label
+    const label = (snap.title || "").slice(0, 18);
+    const tw = label.length * 4;
+    drawText3(ox + ((bw - tw) / 2) | 0, oy + 5, label, 255, 240, 200, 1);
+  }
+
   // Integer hit-point damage (1–5 scale). Armor absorbs whole hits first.
   function damagePlayer(amount) {
     let dmg = Math.max(1, Math.round(amount));
@@ -4141,13 +4747,16 @@
     if (armored > 0 && dmg === 0) {
       armorFlash = Math.max(armorFlash, 0.28);
       shake = Math.max(shake, 3);
-      padRumble(70, 0.25, 0.35);
+      feelHaptics("armor");
     }
     if (dmg > 0) {
       player.hp = Math.max(0, player.hp - dmg);
       hurtFlash = Math.max(hurtFlash, 0.32 + dmg * 0.18);
       shake = Math.max(shake, 5 + dmg * 4);
-      padRumble(90 + dmg * 50, 0.45, 0.65 + dmg * 0.12);
+      hitStop = Math.max(hitStop, 0.035 + dmg * 0.012);
+      feelHaptics("hurt", 0.75 + dmg * 0.35);
+      // Critical low HP: force a heartbeat soon
+      if (player.hp <= 2) lowHpPulseT = Math.min(lowHpPulseT, 0.15);
     }
     return player.hp;
   }
@@ -4158,7 +4767,7 @@
 
   function spawnExplosion(x, y, power = 1) {
     explosions.push({ x, y, t: 0, life: 0.55, r: 0.3, intensity: 1.2 * power, power });
-    SFX.explode();
+    SFX.explode(x, y);
     shake = Math.max(shake, 8 * power);
     addFloorDecal(x, y, "scorch");
     // particles
@@ -4241,32 +4850,38 @@
   function hurtEnemy(e, dmg) {
     if (!e || !e.alive) return;
     e.hp -= dmg;
-    e.flashT = e.boss ? 0.18 : 0.14;
-    spawnDmgNum(e, dmg, dmg >= 28 || (player.buffs.rage > 0 && dmg >= 18));
-    SFX.hit();
-    if (e.boss) {
-      // Stronger punch when tagging the Hell Lord
-      shake = Math.max(shake, 3 + Math.min(4, dmg / 12));
-      padRumble(70 + Math.min(80, dmg * 2), 0.3, 0.45 + Math.min(0.4, dmg / 40));
-    }
+    e.flashT = e.boss ? 0.22 : 0.16;
+    // Short flinch so hits read (boss flinches less)
+    e.stunT = Math.max(e.stunT || 0, e.boss ? 0.08 : 0.14 + Math.min(0.1, dmg / 80));
+    const crit = dmg >= 28 || (player.buffs.rage > 0 && dmg >= 18);
+    spawnDmgNum(e, dmg, crit);
+    feelHitmarker(crit);
+    SFX.hit(e.x, e.y);
+    // Camera + pad punch on every hit (not only bosses)
+    shake = Math.max(shake, e.boss
+      ? 3 + Math.min(5, dmg / 10)
+      : 1.8 + Math.min(3.5, dmg / 14));
+    feelHaptics("hit", e.boss ? 1.15 + Math.min(0.4, dmg / 50) : 0.7 + Math.min(0.5, dmg / 35));
+    if (crit) hitStop = Math.max(hitStop, 0.04);
     // impact spray
-    const n = 8 + Math.min(12, (dmg / 4) | 0) + (e.boss ? 6 : 0);
+    const n = 10 + Math.min(14, (dmg / 3.5) | 0) + (e.boss ? 8 : 0) + (crit ? 6 : 0);
     const col = e.kind === "baron" || e.boss ? [200, 60, 220]
       : e.kind === "caco" ? [240, 50, 50] : [60, 200, 50];
     for (let i = 0; i < n; i++) {
       particles.push({
         x: e.x, y: e.y, z: (e.z || 0) + 0.4,
-        vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
-        vz: (Math.random() - 0.2) * 2.5,
-        life: 0.2 + Math.random() * 0.3,
+        vx: (Math.random() - 0.5) * (crit ? 5.5 : 4),
+        vy: (Math.random() - 0.5) * (crit ? 5.5 : 4),
+        vz: (Math.random() - 0.2) * 2.8,
+        life: 0.2 + Math.random() * 0.35,
         color: Math.random() > 0.3 ? col : [220, 220, 220],
-        size: 1 + Math.random() * 2,
+        size: 1 + Math.random() * (crit ? 2.8 : 2),
       });
     }
     if (e.hp <= 0) killEnemy(e);
     else {
       updateHud();
-      if (Math.random() < 0.5) addFloorDecal(e.x, e.y, "blood");
+      if (Math.random() < 0.55) addFloorDecal(e.x, e.y, "blood");
     }
   }
 
@@ -4288,7 +4903,8 @@
     const wasBoss = !!e.boss;
     addKillMsg(e.name);
     spawnKillTaunt(e);
-    SFX.kill();
+    SFX.kill(e.x, e.y);
+    tryMidWaveLoot();
     // Distinct death FX per kind
     const n = e.boss ? 48 : e.kind === "baron" ? 32 : e.kind === "caco" ? 26 : 20;
     const cols = e.boss || e.kind === "baron"
@@ -4319,10 +4935,16 @@
     });
     addFloorDecal(e.x, e.y, "blood");
     addFloorDecal(e.x + (Math.random() - 0.5) * 0.4, e.y + (Math.random() - 0.5) * 0.4, "blood");
+    // Kill punch — always, stronger on elites/boss
+    const killPow = e.boss ? 1.4 : e.kind === "baron" ? 1.15 : 1;
+    shake = Math.max(shake, e.boss ? 11 : e.kind === "baron" ? 7 : 4.5);
+    hitStop = Math.max(hitStop, e.boss ? 0.1 : 0.055);
+    killPunch = Math.max(killPunch, e.boss ? 0.22 : 0.12);
+    feelHitmarker(true);
+    feelHaptics("kill", killPow);
     if (e.boss) {
       addFloorDecal(e.x, e.y, "scorch");
-      shake = Math.max(shake, 10);
-      padRumble(200, 0.5, 0.85);
+      feelHaptics("boss");
     }
 
     // Level-1 boss slain → Iron Citadel
@@ -4411,6 +5033,7 @@
     shake = w.id === "rocket" ? 7 : w.id === "chaingun" ? 2.5 : 4;
     SFX.shoot(w.id);
     padFireHaptics(w.id);
+    feelPulseCross("fire");
     // tiny brass / smoke puffs near muzzle for feel
     const mx = player.x + Math.cos(player.a) * 0.35;
     const my = player.y + Math.sin(player.a) * 0.35;
@@ -4489,7 +5112,7 @@
       const dmg = weaponDmg(w);
       if (hitKind === "barrel") {
         hit.hp -= dmg;
-        SFX.hit();
+        SFX.hit(hit.x, hit.y);
         if (hit.hp <= 0) detonateBarrel(hit);
         else {
           for (let i = 0; i < 4; i++) {
@@ -5421,6 +6044,67 @@
     }
   }
 
+  function drawHitmarker() {
+    if (hitmarkerT <= 0) return;
+    const t = Math.min(1, hitmarkerT / 0.12);
+    const cx = (W / 2) | 0;
+    const cy = ((H * 0.48) | 0);
+    const gap = 2;
+    const arm = (3 + t * 4) | 0;
+    const thick = hitmarkerCrit ? 2 : 1;
+    let r = 255, g = hitmarkerCrit ? 200 : 240, b = hitmarkerCrit ? 60 : 240;
+    if (t < 0.35) {
+      g = (g * (t / 0.35)) | 0;
+      b = (b * (t / 0.35)) | 0;
+    }
+    const putSeg = (x0, y0, x1, y1) => {
+      const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1);
+      for (let i = 0; i <= steps; i++) {
+        const u = i / steps;
+        const px = (x0 + (x1 - x0) * u) | 0;
+        const py = (y0 + (y1 - y0) * u) | 0;
+        for (let oy = -thick + 1; oy < thick; oy++) {
+          for (let ox = -thick + 1; ox < thick; ox++) {
+            put(px + ox, py + oy, r, g, b);
+          }
+        }
+      }
+    };
+    // Four corner ticks (classic FPS hitmarker)
+    putSeg(cx - gap - arm, cy - gap - arm, cx - gap, cy - gap);
+    putSeg(cx + gap, cy - gap, cx + gap + arm, cy - gap - arm);
+    putSeg(cx - gap - arm, cy + gap + arm, cx - gap, cy + gap);
+    putSeg(cx + gap, cy + gap, cx + gap + arm, cy + gap + arm);
+    // Crit: small center spark
+    if (hitmarkerCrit) {
+      put(cx, cy, 255, 220, 80);
+      put(cx - 1, cy, 255, 180, 40);
+      put(cx + 1, cy, 255, 180, 40);
+      put(cx, cy - 1, 255, 180, 40);
+      put(cx, cy + 1, 255, 180, 40);
+    }
+  }
+
+  function drawKillPunch() {
+    if (killPunch <= 0) return;
+    const a = Math.min(1, killPunch * 4) * 0.22;
+    // Soft white flash — reads as impact, not damage
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const edge = Math.max(
+          Math.abs(x / W - 0.5) * 2,
+          Math.abs(y / H - 0.5) * 2
+        );
+        const w = a * (0.35 + edge * 0.9);
+        if (w < 0.02) continue;
+        const i = (y * W + x) * 4;
+        buf[i] = Math.min(255, buf[i] + 255 * w);
+        buf[i + 1] = Math.min(255, buf[i + 1] + 240 * w);
+        buf[i + 2] = Math.min(255, buf[i + 2] + 200 * w);
+      }
+    }
+  }
+
   function drawFloatTexts() {
     const dirX = Math.cos(player.a), dirY = Math.sin(player.a);
     const planeX = -dirY * Math.tan(HALF_FOV), planeY = dirX * Math.tan(HALF_FOV);
@@ -5683,8 +6367,11 @@
     drawFloatTexts();
     drawWeapon();
     drawVignette();
+    drawKillPunch();
+    drawHitmarker();
     drawMinimap();
     drawHealthBar();
+    drawProgressBar();
     drawWaveBanner();
     drawFpsHud();
     drawMusicMenu();
@@ -5701,6 +6388,11 @@
   }
 
   function update(dt) {
+    // Brief combat hitstop (slow-mo punch) — tick the freeze first, then scale sim
+    if (hitStop > 0) {
+      hitStop = Math.max(0, hitStop - dt);
+      dt *= 0.16;
+    }
     time += dt;
     // FPS sample
     fpsFrames++;
@@ -6002,10 +6694,12 @@
       if (!e.alive) continue;
       e.bob += dt * 6;
       e.frame += dt * 6;
+      if (e.stunT > 0) e.stunT = Math.max(0, e.stunT - dt);
 
       // Hell Lord — dedicated pattern AI
       if (e.boss) {
-        updateBoss(e, dt);
+        // Soft flinch still lets boss AI run but slows slightly
+        updateBoss(e, e.stunT > 0 ? dt * 0.55 : dt);
         continue;
       }
 
@@ -6020,25 +6714,49 @@
       else e.seeT = 0;
       const rMin = e.rangeMin || 1.5;
       const rMax = e.rangeMax || 7;
-      const acquired = (e.seeT || 0) >= 0.45; // ~half second of clear view
+      const prefer = e.preferRange || ((rMin + rMax) * 0.5);
+      const seeNeed = e.seeNeed != null ? e.seeNeed : 0.45;
+      const acquired = (e.seeT || 0) >= seeNeed;
+      const role = e.role || (e.kind === "baron" ? "tank" : e.kind === "caco" ? "sniper" : "charger");
 
-      // Prefer holding mid-range when they can see you; chase if blind
-      // Freeze stride while charging a shot (telegraph readability)
-      let moveScale = e.chargeT != null ? 0.15 : 1;
+      // Hit flinch freezes stride (readable feedback)
+      if (e.stunT > 0) {
+        if (e.flashT > 0) e.flashT = Math.max(0, e.flashT - dt);
+        continue;
+      }
+
+      // Role movement
+      // charger: always close distance; sniper: hold prefer range + kite; tank: slow pressure
+      let moveScale = e.chargeT != null ? (role === "sniper" ? 0.08 : 0.15) : 1;
       if (e.chargeT == null) {
-        if (clearView && dist < rMin * 0.85 && e.kind !== "baron") moveScale = -0.45;
-        else if (clearView && dist > rMin && dist < rMax * 0.75) moveScale = e.kind === "caco" ? 0.3 : 0.5;
-        else if (dist > 0.55) moveScale = 1;
-        else moveScale = 0;
+        if (role === "charger") {
+          // Sprint in — only back off if practically on top of you
+          if (dist > 0.65) moveScale = 1.15;
+          else moveScale = 0.15;
+        } else if (role === "sniper") {
+          if (clearView && dist < prefer * 0.75) moveScale = -0.7; // kite
+          else if (clearView && dist > prefer * 1.15) moveScale = 0.55;
+          else if (clearView) moveScale = 0.15; // strafe pocket
+          else moveScale = 0.85; // re-acquire
+        } else {
+          // tank
+          if (clearView && dist < rMin * 0.9) moveScale = -0.25;
+          else if (clearView && dist > prefer) moveScale = 0.7;
+          else if (clearView) moveScale = 0.35;
+          else if (dist > 0.55) moveScale = 0.9;
+          else moveScale = 0;
+        }
       }
 
       if (moveScale !== 0) {
         let sp = e.speed * dt * Math.abs(moveScale);
         if (surfaceAt(e.x, e.y) === 1) sp *= 0.6;
         const dir = moveScale < 0 ? -1 : 1;
-        const sx = -uy * (e.strafe || 1) * 0.4;
-        const sy = ux * (e.strafe || 1) * 0.4;
-        if (Math.random() < 0.35 * dt) e.strafe = -(e.strafe || 1);
+        // Snipers strafe hard; chargers almost straight-line; tanks mild
+        const strafeAmt = role === "sniper" ? 0.75 : role === "charger" ? 0.15 : 0.4;
+        const sx = -uy * (e.strafe || 1) * strafeAmt;
+        const sy = ux * (e.strafe || 1) * strafeAmt;
+        if (Math.random() < (role === "sniper" ? 0.55 : 0.3) * dt) e.strafe = -(e.strafe || 1);
         const nx = e.x + (ux * dir + sx) * sp;
         const ny = e.y + (uy * dir + sy) * sp;
         const tryE = (tx, ty) => {
@@ -6057,8 +6775,12 @@
       }
 
       // Shot telegraph: wind-up glow, then fire (readable)
+      // Chargers almost never shoot at long range; snipers almost always do when in pocket
       if (e.flashT > 0) e.flashT = Math.max(0, e.flashT - dt);
-      if (!clearView || dist < rMin || dist > rMax || dz >= 1.25) {
+      const wantShot = role === "charger"
+        ? (dist > 2.2 && dist < rMax && clearView) // rare mid-range spit
+        : (dist >= rMin && dist <= rMax && clearView && dz < 1.25);
+      if (!wantShot) {
         e.chargeT = null;
       } else if (
         e.chargeT == null &&
@@ -6066,12 +6788,17 @@
         enemyShotGate <= 0 &&
         acquired
       ) {
-        e.chargeT = e.kind === "baron" ? 0.48 : 0.38;
-        if (dist < 8) SFX.charge();
+        // Chance gates: chargers rarely open fire
+        const fireChance = role === "charger" ? 0.22 : role === "sniper" ? 1 : 0.85;
+        if (Math.random() < fireChance) {
+          e.chargeT = role === "tank" ? 0.52 : role === "sniper" ? 0.32 : 0.4;
+          if (dist < 9) SFX.charge(e.x, e.y);
+        } else {
+          e.attackCd = 0.4 + Math.random() * 0.5;
+        }
       }
       if (e.chargeT != null) {
         e.chargeT -= dt;
-        // Charge glow particles at hands/mouth
         if (Math.random() < 18 * dt) {
           const col = e.kind === "caco" ? [255, 80, 200]
             : e.kind === "baron" ? [190, 80, 255] : [255, 160, 40];
@@ -6086,16 +6813,29 @@
         }
         if (e.chargeT <= 0) {
           e.chargeT = null;
-          fireEnemyShot(e);
+          if (e.multiShot && Math.random() < 0.55) {
+            fireEnemyShot(e, {
+              count: 3, spread: 0.45, speedMul: 0.9, cdMul: 1.1,
+              color: [180, 80, 255], glow: [140, 50, 255],
+            });
+          } else {
+            fireEnemyShot(e, role === "sniper" ? { speedMul: 1.15, cdMul: 0.85 } : {});
+          }
         }
       }
-      // Melee if in face (slower slap too)
-      if (dist < 0.7 && dz < 0.55 && e.attackCd <= 0 && e.chargeT == null) {
+      // Melee — chargers hit harder/faster when in face
+      const mReach = e.meleeReach || 0.7;
+      const mCd = role === "charger" ? 0.75 : role === "tank" ? 1.25 : 1.1;
+      if (dist < mReach && dz < 0.55 && e.attackCd <= 0 && e.chargeT == null) {
         damagePlayer(e.dmg);
-        e.attackCd = 1.15;
+        e.attackCd = mCd;
         e.seeT = 0;
         SFX.pain();
-        SFX.growl();
+        SFX.growl(e.x, e.y);
+        if (role === "charger") {
+          shake = Math.max(shake, 5);
+          feelHaptics("hurt", 0.55);
+        }
         updateHud();
         if (player.hp <= 0) {
           player.hp = 0; dead = true; running = false; SFX.die(); showEnd(false);
@@ -6137,6 +6877,14 @@
       const pdx = pr.x - player.x, pdy = pr.y - player.y;
       const pdist = Math.hypot(pdx, pdy);
       const pdz = Math.abs((pr.z || 0) - (player.z + 0.35));
+      // Near-miss whoosh when a bolt skims past
+      if (!deadPr && nearMissCd <= 0 && pdist > 0.35 && pdist < 0.85 && pdz < 0.9) {
+        nearMissCd = 0.35;
+        feelHaptics("nearmiss");
+        if (Math.random() < 0.4) {
+          killMsgs.unshift({ text: "CLOSE!", t: 0.55 });
+        }
+      }
       if (!deadPr && pdist < (pr.r || 0.08) + PLAYER_R + 0.1 && pdz < 0.7) {
         damagePlayer(pr.dmg || 1);
         SFX.pain();
@@ -6165,6 +6913,27 @@
 
     if (hurtFlash > 0) hurtFlash = Math.max(0, hurtFlash - dt);
     if (armorFlash > 0) armorFlash = Math.max(0, armorFlash - dt);
+    if (hitmarkerT > 0) hitmarkerT = Math.max(0, hitmarkerT - dt);
+    if (killPunch > 0) killPunch = Math.max(0, killPunch - dt);
+    if (nearMissCd > 0) nearMissCd = Math.max(0, nearMissCd - dt);
+    if (crossPulseT > 0) {
+      crossPulseT = Math.max(0, crossPulseT - dt);
+      if (crossPulseT <= 0) {
+        const el = document.getElementById("cross");
+        if (el) el.classList.remove("fire", "hit", "crit");
+      }
+    }
+    // Low HP DualSense heartbeat
+    if (running && !dead && !won && player.hp > 0 && player.hp <= 2) {
+      lowHpPulseT -= dt;
+      if (lowHpPulseT <= 0) {
+        lowHpPulseT = player.hp <= 1 ? 0.55 : 0.85;
+        feelHaptics("heartbeat");
+        playHeartbeatThump();
+      }
+    } else {
+      lowHpPulseT = 0.4;
+    }
     if (waveBanner) {
       waveBanner.t -= dt;
       if (waveBanner.t <= 0) waveBanner = null;
