@@ -2,7 +2,21 @@
 
 Single-file browser arena FPS (software raycaster). No build step — static files only.
 
-## Play locally
+## Play
+
+**Live:** [https://grokdoom.vercel.app](https://grokdoom.vercel.app)
+
+### Best way to play: DualSense
+
+Grok DOOM is built for the **PlayStation DualSense** controller over **WebHID** (Chrome / Chromium, HTTPS). That is the intended full experience:
+
+- Full **haptic feedback** (rumble that tracks combat)
+- **Adaptive triggers** (L2 / R2 resistance for aim and fire)
+- Sticks, face buttons, and shoulder inputs mapped for the arena
+
+Connect DualSense over USB or Bluetooth, open the live site in Chrome, then use the in-game **DS5 TRIGGERS** control (user gesture required so the browser can claim the device). Keyboard + mouse still work fine; DualSense is just the best way to play.
+
+### Play locally
 
 ```bash
 cd doom
@@ -27,7 +41,7 @@ Open [http://localhost:8765/](http://localhost:8765/)
 | [ ] | Resolution (sets auto-quality ceiling) |
 | P | Toggle auto quality |
 | R / ✕ (on end screen) | Restart |
-| DS5 TRIGGERS button | DualSense adaptive triggers (Chrome + WebHID) |
+| DS5 TRIGGERS button | DualSense WebHID: adaptive triggers + full haptics (Chrome) |
 
 ## Layout
 
@@ -62,13 +76,9 @@ This is a **client-only** game — no backend, no accounts, no secrets.
 
 ## Deploy
 
-Pick one host. Root directory must be this folder (so `/` serves `index.html` and `/audio/...` works).
+Production is on **Vercel** at [https://grokdoom.vercel.app](https://grokdoom.vercel.app) (repo linked for push-to-deploy on `main`).
 
-### Cloudflare Pages
-
-1. Connect repo or `npx wrangler pages deploy . --project-name=grok-doom`
-2. Build command: *(none)* · Output directory: `.`
-3. `_headers` is applied automatically
+Root directory must be this folder (so `/` serves `index.html` and `/audio/...` works).
 
 ### Vercel
 
@@ -76,7 +86,13 @@ Pick one host. Root directory must be this folder (so `/` serves `index.html` an
 npx vercel --prod
 ```
 
-Uses `vercel.json` headers. Framework: **Other** / static.
+Uses `vercel.json` headers. Framework: **Other** / static. Project: HeartBeatForge `grok-doom`.
+
+### Cloudflare Pages
+
+1. Connect repo or `npx wrangler pages deploy . --project-name=grok-doom`
+2. Build command: *(none)* · Output directory: `.`
+3. `_headers` is applied automatically
 
 ### Netlify
 
@@ -102,12 +118,12 @@ add_header Referrer-Policy strict-origin-when-cross-origin;
 
 ## Pre-flight checklist
 
+- [ ] Live site [https://grokdoom.vercel.app](https://grokdoom.vercel.app) loads over HTTPS
 - [ ] `python3 -m http.server` — title loads, ENTER THE ARENA works
 - [ ] Audio plays (click once to unlock AudioContext)
 - [ ] Wave banners / death screen / high score look correct
 - [ ] Auto quality (`P`) / res `[` `]` behave
-- [ ] DualSense optional (HTTPS + Chrome + user gesture)
-- [ ] Deployed URL is **HTTPS**
+- [ ] DualSense (best path): Chrome + HTTPS + user gesture — haptics + adaptive triggers
 - [ ] `/audio/music/*.wav` returns 200 on the live host
 
 ## License / assets
