@@ -7,8 +7,16 @@
 <meta name="theme-color" content="#0a0a0a" />
 <meta name="robots" content="index,follow" />
 <meta property="og:title" content="Grok DOOM" />
-<meta property="og:description" content="Browser arena FPS. Clear Hell Arena. Survive the Hell Lord. Conquer the Iron Citadel." />
+<meta property="og:description" content="Fictional video game. Browser arena FPS. Clear Hell Arena. Survive the Hell Lord. Conquer the Iron Citadel." />
 <meta property="og:type" content="website" />
+<meta property="og:url" content="https://grokdoom.vercel.app/" />
+<meta property="og:image" content="https://grokdoom.vercel.app/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="GROK DOOM" />
+<meta name="twitter:description" content="Fictional video game. Browser arena FPS." />
+<meta name="twitter:image" content="https://grokdoom.vercel.app/og.png" />
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'" />
 <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
@@ -413,6 +421,9 @@
     color: var(--amber);
   }
   #msg button.secondary:hover { background: #333; border-color: var(--amber); }
+  #msg.title-mode #shareBtn { display: none; }
+  #msg.dead-mode #shareBtn,
+  #msg.win-mode #shareBtn { display: inline-block; }
   /* Below canvas FPS strip (~top 14px of game buffer); stacked lines, no pile-up */
   #killfeed {
     position: absolute;
@@ -518,6 +529,7 @@
       </div>
       <div class="btn-row">
         <button type="button" id="startBtn">ENTER THE ARENA</button>
+        <button type="button" id="shareBtn" class="secondary">SHARE CARD</button>
         <button type="button" id="msgFsBtn" class="secondary">⛶ FULLSCREEN</button>
       </div>
     </div>
@@ -3369,6 +3381,11 @@
   const msgRecord = document.getElementById("msgRecord");
   const msgKeys = document.getElementById("msgKeys");
   const startBtn = document.getElementById("startBtn");
+  const shareBtn = document.getElementById("shareBtn");
+  let lastEndVictory = false;
+  let shareBusy = false;
+  const SHARE_W = 720, SHARE_H = 960;
+  const SHARE_URL = "https://grokdoom.vercel.app";
   const hpEl = document.getElementById("hp");
   const killsEl = document.getElementById("kills");
   const progMainEl = document.getElementById("progMain");
@@ -5252,7 +5269,185 @@
     resolveHitscanVolley(groups);
   }
 
+  function fitShareText(ctx, text, maxW, weight, px, family) {
+    let size = px;
+    while (size > 18) {
+      ctx.font = `${weight} ${size}px ${family}`;
+      if (ctx.measureText(text).width <= maxW) return size;
+      size -= 2;
+    }
+    return 18;
+  }
+
+  function drawShareCard(victory) {
+    const c = document.createElement("canvas");
+    c.width = SHARE_W;
+    c.height = SHARE_H;
+    const ctx = c.getContext("2d");
+    const family = '"Courier New", Courier, monospace';
+    const blood = "#c41e3a";
+    const amber = "#ffb000";
+    const green = "#39ff14";
+    const border = victory ? "#1a3a20" : "#3a1010";
+
+    ctx.fillStyle = "#0a0a0a";
+    ctx.fillRect(0, 0, SHARE_W, SHARE_H);
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 8;
+    ctx.strokeRect(10, 10, SHARE_W - 20, SHARE_H - 20);
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.font = `bold 48px ${family}`;
+    const grok = "GROK", doom = "DOOM", gap = 20;
+    const gw = ctx.measureText(grok).width;
+    const dw = ctx.measureText(doom).width;
+    const left = (SHARE_W - (gw + gap + dw)) / 2;
+    ctx.fillStyle = blood;
+    ctx.fillText(grok, left + gw / 2, 70);
+    ctx.fillStyle = amber;
+    ctx.fillText(doom, left + gw + gap + dw / 2, 70);
+
+    ctx.fillStyle = "#888888";
+    ctx.font = `16px ${family}`;
+    ctx.fillText("FICTIONAL VIDEO GAME", SHARE_W / 2, 132);
+
+    const headline = victory ? "RIP AND TEAR" : "YOU DIED";
+    const headPx = fitShareText(ctx, headline, SHARE_W - 80, "bold", 52, family);
+    ctx.font = `bold ${headPx}px ${family}`;
+    ctx.fillStyle = victory ? green : blood;
+    ctx.shadowColor = victory ? "rgba(57,255,20,0.45)" : "rgba(255,0,0,0.4)";
+    ctx.shadowBlur = 18;
+    ctx.fillText(headline, SHARE_W / 2, 196);
+    ctx.shadowBlur = 0;
+
+    const killStr = String(Math.max(0, kills | 0));
+    const killPx = fitShareText(ctx, killStr, SHARE_W - 80, "bold", 160, family);
+    ctx.font = `bold ${killPx}px ${family}`;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(killStr, SHARE_W / 2, 300);
+
+    ctx.fillStyle = amber;
+    ctx.font = `bold 22px ${family}`;
+    ctx.fillText("KILLS", SHARE_W / 2, 300 + killPx + 12);
+
+    const barY = 560, barH = 108, barX = 48, barW = SHARE_W - 96;
+    ctx.fillStyle = victory ? "#081208" : "#120808";
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.strokeStyle = victory ? "#1a3a20" : "#3a2020";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX + 0.5, barY + 0.5, barW - 1, barH - 1);
+
+    const stats = [
+      ["TIME", formatTime(runTime)],
+      ["WAVE", String(Math.max(1, wave | 0))],
+      ["BEST", String(Math.max(highScore, kills) | 0)],
+    ];
+    for (let i = 0; i < stats.length; i++) {
+      const x = barX + barW * (i + 0.5) / 3;
+      ctx.fillStyle = "#888888";
+      ctx.font = `14px ${family}`;
+      ctx.fillText(stats[i][0], x, barY + 20);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `bold 28px ${family}`;
+      ctx.fillText(stats[i][1], x, barY + 48);
+    }
+
+    ctx.fillStyle = amber;
+    ctx.font = `18px ${family}`;
+    ctx.fillText("grokdoom.vercel.app", SHARE_W / 2, 880);
+    return c;
+  }
+
+  function shareCardPageUrl(victory) {
+    const q = new URLSearchParams({
+      k: String(Math.max(0, kills | 0)),
+      t: formatTime(runTime),
+      w: String(Math.max(1, wave | 0)),
+      b: String(Math.max(highScore, kills) | 0),
+      v: victory ? "1" : "0",
+    });
+    return SHARE_URL + "/api/card?" + q.toString();
+  }
+
+  function shareCaption(victory) {
+    const n = Math.max(0, kills | 0);
+    const line = victory
+      ? `RIP AND TEAR — ${n} kills in GROK DOOM (fictional video game)`
+      : `YOU DIED — ${n} kills in GROK DOOM (fictional video game)`;
+    return line + "\n" + shareCardPageUrl(victory);
+  }
+
+  function canvasToBlob(canvas) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("png"))), "image/png");
+    });
+  }
+
+  function downloadBlob(blob, name) {
+    const a = document.createElement("a");
+    const href = URL.createObjectURL(blob);
+    a.href = href;
+    a.download = name;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(href), 2000);
+  }
+
+  function setShareStatus(text) {
+    if (!shareBtn) return;
+    shareBtn.textContent = text;
+    clearTimeout(setShareStatus.t);
+    setShareStatus.t = setTimeout(() => {
+      if (shareBtn) shareBtn.textContent = "SHARE CARD";
+    }, 2800);
+  }
+
+  async function shareRunCard() {
+    if (shareBusy || !shareBtn) return;
+    shareBusy = true;
+    shareBtn.disabled = true;
+    const filename = `grok-doom-${Math.max(0, kills | 0)}kills.png`;
+    const text = shareCaption(lastEndVictory);
+    const intent = "https://x.com/intent/post?text=" + encodeURIComponent(text);
+    try {
+      const canvas = drawShareCard(lastEndVictory);
+      // Open X in the same click so the popup isn't blocked.
+      const xWin = window.open(intent, "_blank", "noopener,noreferrer");
+      const blob = await canvasToBlob(canvas);
+      const file = new File([blob], filename, { type: "image/png" });
+      if (!xWin && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: "GROK DOOM", text, url: SHARE_URL });
+          setShareStatus("SHARED");
+          return;
+        } catch (err) {
+          if (err && err.name === "AbortError") return;
+        }
+      }
+      let copied = false;
+      try {
+        if (navigator.clipboard && window.ClipboardItem) {
+          await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+          copied = true;
+        }
+      } catch (_) {}
+      if (!copied) downloadBlob(blob, filename);
+      if (copied) setShareStatus("COPIED — PASTE IN X");
+      else if (xWin) setShareStatus("SAVED — ATTACH IN X");
+      else setShareStatus("PNG SAVED");
+    } catch (_) {
+      setShareStatus("SHARE FAILED");
+    } finally {
+      shareBusy = false;
+      if (shareBtn) shareBtn.disabled = false;
+    }
+  }
+
   function showEnd(victory) {
+    lastEndVictory = !!victory;
     commitScore();
     document.exitPointerLock?.();
     msgEl.classList.remove("hidden");
@@ -5307,10 +5502,14 @@
     if (msgKeys) {
       msgKeys.style.display = "block";
       msgKeys.innerHTML = victory
-        ? "R — run it back &nbsp;·&nbsp; DualSense ✕ also restarts"
-        : "R — try again &nbsp;·&nbsp; DualSense ✕ restarts";
+        ? "R — run it back &nbsp;·&nbsp; DualSense ✕ also restarts<br>SHARE CARD — opens X with the run image"
+        : "R — try again &nbsp;·&nbsp; DualSense ✕ restarts<br>SHARE CARD — opens X with the run image";
     }
     startBtn.textContent = victory ? "PLAY AGAIN" : "RISE AGAIN";
+    if (shareBtn) {
+      shareBtn.textContent = "SHARE CARD";
+      shareBtn.disabled = false;
+    }
   }
 
   function showTitle() {
@@ -7306,6 +7505,13 @@
     e.stopPropagation();
     startGame();
   });
+  if (shareBtn) {
+    shareBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      shareRunCard();
+    });
+  }
 
   resetGame();
   running = false;
