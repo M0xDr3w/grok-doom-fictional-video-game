@@ -750,7 +750,7 @@
       maxWaves: 6,
       // Escalation toward the lord (boss still triggers on kill count)
       waveTable: [
-        { imps: 6, cacos: 1, barons: 0 },
+        { imps: 4, cacos: 0, barons: 0 },
         { imps: 7, cacos: 2, barons: 0 },
         { imps: 7, cacos: 2, barons: 1 },
         { imps: 8, cacos: 3, barons: 1 },
@@ -855,7 +855,7 @@
       bossAtKills: 999,
       maxWaves: 4,
       waveTable: [
-        { imps: 7, cacos: 2, barons: 0 },
+        { imps: 6, cacos: 2, barons: 0 },
         { imps: 8, cacos: 2, barons: 1 },
         { imps: 8, cacos: 3, barons: 1 },
         { imps: 8, cacos: 4, barons: 2 },
@@ -1821,14 +1821,14 @@
   const WEAPONS = {
     shotgun: {
       id: "shotgun", name: "SHOTGUN",
-      dmgMin: 16, dmgMax: 26, fireCd: 0.32, range: 13,
-      pellets: 1, spreadMul: 1, splash: 0, kick: 0.16, ammoUse: 0,
+      dmgMin: 6, dmgMax: 8, fireCd: 0.32, range: 13,
+      pellets: 7, spreadMul: 1, splash: 0, kick: 0.16, ammoUse: 0,
       infinite: true,
     },
     chaingun: {
       id: "chaingun", name: "CHAINGUN",
       dmgMin: 7, dmgMax: 11, fireCd: 0.08, range: 16,
-      pellets: 1, rangeMul: 1, splash: 0, kick: 0.06, ammoUse: 1,
+      pellets: 1, spreadMul: 1, splash: 0, kick: 0.06, ammoUse: 1,
       infinite: false, startAmmo: 80, pickupAmmo: 50,
     },
     rocket: {
@@ -3607,16 +3607,27 @@
     buf[i + 3] = 255;
   }
 
-  function randomEmpty() {
-    for (let i = 0; i < 100; i++) {
-      const x = 1.5 + Math.random() * (MAP_W - 3);
-      const y = 1.5 + Math.random() * (MAP_H - 3);
-      if (!isWall(x, y) && cell(x, y) !== 4) {
+  function randomEmpty(opts = {}) {
+    const minDist2 = opts.minDist2 != null ? opts.minDist2 : 16; // ~4 units
+    const tryPoint = (needFwd) => {
+      for (let i = 0; i < 80; i++) {
+        const x = 1.5 + Math.random() * (MAP_W - 3);
+        const y = 1.5 + Math.random() * (MAP_H - 3);
+        if (isWall(x, y) || cell(x, y) === 4) continue;
         const dx = x - player.x, dy = y - player.y;
-        if (dx * dx + dy * dy > 9) return { x, y, z: floorH(x, y) };
+        const d2 = dx * dx + dy * dy;
+        if (d2 < minDist2) continue;
+        if (needFwd) {
+          const fx = Math.cos(player.a), fy = Math.sin(player.a);
+          if (dx * fx + dy * fy <= 0) continue;
+        }
+        return { x, y, z: floorH(x, y) };
       }
-    }
-    return { x: MAP_W - 2.5, y: MAP_H - 2.5, z: floorH(MAP_W - 2.5, MAP_H - 2.5) };
+      return null;
+    };
+    return tryPoint(opts.forward !== false)
+      || tryPoint(false)
+      || { x: MAP_W - 2.5, y: MAP_H - 2.5, z: floorH(MAP_W - 2.5, MAP_H - 2.5) };
   }
 
   // Global gap so the whole pack can't volley at once
@@ -3662,6 +3673,10 @@
       base.seeNeed = 0.3;
       base.meleeReach = 0.8;
     }
+    // Opening wave: slower close so the player can read the arena
+    if (!opts.boss && wave <= 1) {
+      base.speed *= 0.62;
+    }
     // Later waves: slight bulk (fire rate stays mostly sane)
     if (!opts.boss && wave >= 3) {
       base.hp = Math.round(base.hp * (1 + (wave - 2) * 0.12));
@@ -3671,7 +3686,7 @@
     enemies.push({
       ...base, x: p.x, y: p.y, z: p.z, maxHp: base.hp, boss: !!opts.boss,
       // Long wind-up so the arena doesn't open with a fireball storm
-      attackCd: opts.boss ? 1.8 : (2.4 + Math.random() * 3.2),
+      attackCd: opts.boss ? 1.8 : (2.4 + Math.random() * 3.2) + (wave <= 1 ? 0.9 : 0),
       seeT: 0, // how long they've had continuous clear LOS
       frame: Math.random() * 2, bob: Math.random() * 6,
       strafe: Math.random() < 0.5 ? 1 : -1,
@@ -4189,6 +4204,7 @@
 
   function startBossFight() {
     bossPhase = true;
+    spawnQueue.length = 0;
     projectiles = [];
     // Wipe remaining fodder without scoring so the lord owns the stage
     for (const en of enemies) {
@@ -4267,9 +4283,20 @@
       else SFX.wave();
     }
     const spec = waveSpec(n);
-    for (let i = 0; i < spec.imps; i++) spawnEnemy("imp");
-    for (let i = 0; i < spec.cacos; i++) spawnEnemy("cacodemon");
-    for (let i = 0; i < spec.barons; i++) spawnEnemy("baron");
+    spawnQueue.length = 0;
+    const roster = [];
+    for (let i = 0; i < spec.imps; i++) roster.push("imp");
+    for (let i = 0; i < spec.cacos; i++) roster.push("cacodemon");
+    for (let i = 0; i < spec.barons; i++) roster.push("baron");
+    const stagger = n === 1 && roster.length > 3;
+    const immediate = stagger ? 3 : roster.length;
+    for (let i = 0; i < immediate; i++) spawnEnemy(roster[i]);
+    if (stagger) {
+      const rest = roster.length - immediate;
+      for (let i = 0; i < rest; i++) {
+        spawnQueue.push({ kind: roster[immediate + i], t: ((i + 1) / rest) * 1.5 });
+      }
+    }
     if (barrels.filter(b => b.alive).length < 3) spawnBarrels();
     // Mid-run supplies: health every 2nd wave, armor on even waves past 1
     if (n >= 2 && !pickups.some(p => p.alive && p.kind === "health")) {
@@ -4287,13 +4314,14 @@
       });
     }
     // Track how many started this wave for mid-wave supply drop
-    waveStartAlive = enemies.filter(e => e.alive).length;
+    waveStartAlive = enemies.filter(e => e.alive).length + spawnQueue.length;
     waveLootDropped = false;
     updateHud();
   }
 
   let waveStartAlive = 0;
   let waveLootDropped = false;
+  let spawnQueue = [];
 
   function tryMidWaveLoot() {
     if (waveLootDropped || bossPhase || !running || dead || won) return;
@@ -4340,6 +4368,7 @@
     LEVEL_AMBIENT = L.ambient;
     FOG_RGB = L.fogRgb.slice();
     rebuildLevelCaches();
+    spawnQueue.length = 0;
     bossPhase = false;
     levelKills = 0;
     wave = 0;
@@ -4519,6 +4548,7 @@
     };
     lavaHurtCd = 0; surfaceFxCd = 0; lastSurface = 0; fireCd = 0;
     enemyShotGate = 0;
+    spawnQueue.length = 0;
     kills = 0; levelKills = 0; wave = 0; won = false; dead = false; killMsgs = [];
     gunFrame = 0; gunKick = 0; gunPump = 0;
     hurtFlash = 0; armorFlash = 0; waveBanner = null; bossPhase = false;
@@ -4847,22 +4877,25 @@
     if (floatTexts.length > 18) floatTexts.shift();
   }
 
-  function hurtEnemy(e, dmg) {
+  function hurtEnemy(e, dmg, opts = {}) {
     if (!e || !e.alive) return;
+    const silent = !!opts.silent;
     e.hp -= dmg;
     e.flashT = e.boss ? 0.22 : 0.16;
     // Short flinch so hits read (boss flinches less)
     e.stunT = Math.max(e.stunT || 0, e.boss ? 0.08 : 0.14 + Math.min(0.1, dmg / 80));
     const crit = dmg >= 28 || (player.buffs.rage > 0 && dmg >= 18);
-    spawnDmgNum(e, dmg, crit);
-    feelHitmarker(crit);
-    SFX.hit(e.x, e.y);
-    // Camera + pad punch on every hit (not only bosses)
-    shake = Math.max(shake, e.boss
-      ? 3 + Math.min(5, dmg / 10)
-      : 1.8 + Math.min(3.5, dmg / 14));
-    feelHaptics("hit", e.boss ? 1.15 + Math.min(0.4, dmg / 50) : 0.7 + Math.min(0.5, dmg / 35));
-    if (crit) hitStop = Math.max(hitStop, 0.04);
+    if (!silent) {
+      spawnDmgNum(e, dmg, crit);
+      feelHitmarker(crit);
+      SFX.hit(e.x, e.y);
+      // Camera + pad punch on every hit (not only bosses)
+      shake = Math.max(shake, e.boss
+        ? 3 + Math.min(5, dmg / 10)
+        : 1.8 + Math.min(3.5, dmg / 14));
+      feelHaptics("hit", e.boss ? 1.15 + Math.min(0.4, dmg / 50) : 0.7 + Math.min(0.5, dmg / 35));
+      if (crit) hitStop = Math.max(hitStop, 0.04);
+    }
     // impact spray
     const n = 10 + Math.min(14, (dmg / 3.5) | 0) + (e.boss ? 8 : 0) + (crit ? 6 : 0);
     const col = e.kind === "baron" || e.boss ? [200, 60, 220]
@@ -4975,7 +5008,7 @@
       return;
     }
 
-    if (enemies.every(en => !en.alive)) {
+    if (enemies.every(en => !en.alive) && spawnQueue.length === 0) {
       const L = currentLevel();
       const killGate = L.bossAtKills != null ? L.bossAtKills : BOSS_AT_KILLS;
       const maxW = L.maxWaves || (levelIdx === 0 ? 6 : MAX_WAVE_L2);
@@ -4999,6 +5032,106 @@
     let d = w.dmgMin + Math.random() * (w.dmgMax - w.dmgMin);
     if (player.buffs.rage > 0) d *= 2;
     return d;
+  }
+
+  function weaponSpread(w) {
+    const ads = Math.max(0, Math.min(1, zoomAmt));
+    const mul = w.spreadMul != null ? w.spreadMul : 1;
+    if (w.id === "shotgun") return (0.11 * (1 - ads) + 0.04 * ads) * mul;
+    if (w.id === "chaingun") return (0.035 * (1 - ads) + 0.008 * ads) * mul;
+    return 0;
+  }
+
+  function hitscanTarget(dirX, dirY, range, slack, targets) {
+    const ang = Math.atan2(dirY, dirX);
+    let hit = null, hitDist = Infinity;
+    const list = targets || [...enemies.filter(e => e.alive), ...barrels.filter(b => b.alive)];
+    for (const t of list) {
+      const dx = t.x - player.x, dy = t.y - player.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 0.2 || dist > range) continue;
+      let da = Math.atan2(dy, dx) - ang;
+      while (da > Math.PI) da -= Math.PI * 2;
+      while (da < -Math.PI) da += Math.PI * 2;
+      const half = Math.atan2(t.r, dist);
+      if (Math.abs(da) < half + slack && dist < hitDist) {
+        let blocked = false;
+        const steps = Math.ceil(dist * 10);
+        for (let i = 1; i < steps; i++) {
+          const u = i / steps;
+          if (isWall(player.x + dirX * dist * u, player.y + dirY * dist * u)) {
+            blocked = true;
+            break;
+          }
+        }
+        if (!blocked) { hit = t; hitDist = dist; }
+      }
+    }
+    return hit ? { target: hit, dist: hitDist } : null;
+  }
+
+  function applyPelletMiss(dirX, dirY, range, missBudget) {
+    const ray = castRay(dirX, dirY);
+    if (ray.dist >= range) return missBudget;
+    const hx = player.x + dirX * ray.dist;
+    const hy = player.y + dirY * ray.dist;
+    addWallDecal(ray.mapX, ray.mapY, ray.side, ray.texX / TEX);
+    if (missBudget > 0) {
+      addFloorDecal(hx - dirX * 0.15, hy - dirY * 0.15, "scorch");
+      missBudget--;
+    }
+    for (let i = 0; i < 3; i++) {
+      const a = Math.atan2(dirY, dirX) + Math.PI + (Math.random() - 0.5) * 1.2;
+      const sp = 1 + Math.random() * 3;
+      particles.push({
+        x: hx, y: hy,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 0.12 + Math.random() * 0.18,
+        color: Math.random() > 0.5 ? [255, 200, 80] : [160, 160, 160],
+        size: 1 + Math.random() * 2,
+      });
+    }
+    return missBudget;
+  }
+
+  function resolveHitscanVolley(groups) {
+    if (groups.size === 0) return;
+    let pellets = 0, best = null, bestDmg = 0, anyCrit = false;
+    for (const g of groups.values()) {
+      pellets += g.pellets;
+      if (g.dmg > bestDmg) { bestDmg = g.dmg; best = g.target; }
+      const crit = g.dmg >= 28 || (player.buffs.rage > 0 && g.dmg >= 18);
+      if (crit) anyCrit = true;
+      if (g.target.type === "barrel") {
+        g.target.hp -= g.dmg;
+        if (g.target.hp <= 0) detonateBarrel(g.target);
+        else {
+          for (let i = 0; i < 4; i++) {
+            particles.push({
+              x: g.target.x, y: g.target.y,
+              vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
+              life: 0.2, color: [255, 200, 40], size: 1,
+            });
+          }
+        }
+      } else {
+        spawnDmgNum(g.target, g.dmg, crit);
+        hurtEnemy(g.target, g.dmg, { silent: true });
+      }
+    }
+    const meat = pellets >= 4;
+    if (best) {
+      feelHitmarker(anyCrit || meat);
+      SFX.hit(best.x, best.y);
+      feelHaptics("hit", meat ? 1.15 : (best.boss ? 1.1 : 0.75));
+    }
+    if (meat) {
+      shake = Math.max(shake, 4.2);
+    } else if (anyCrit) {
+      shake = Math.max(shake, 3.2);
+    } else {
+      shake = Math.max(shake, best && best.boss ? 3 : 2);
+    }
   }
 
   function shoot() {
@@ -5084,67 +5217,33 @@
       return;
     }
 
-    // Hitscan (shotgun / chaingun)
-    let hit = null, hitDist = Infinity, hitKind = null;
-    const targets = [...enemies.filter(e => e.alive), ...barrels.filter(b => b.alive)];
-    const aimSlack = w.id === "chaingun" ? 0.05 : 0.03;
-
-    for (const t of targets) {
-      const dx = t.x - player.x, dy = t.y - player.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist < 0.2 || dist > w.range) continue;
-      let da = Math.atan2(dy, dx) - player.a;
-      while (da > Math.PI) da -= Math.PI * 2;
-      while (da < -Math.PI) da += Math.PI * 2;
-      const half = Math.atan2(t.r, dist);
-      if (Math.abs(da) < half + aimSlack && dist < hitDist) {
-        let blocked = false;
-        const steps = Math.ceil(dist * 10);
-        for (let i = 1; i < steps; i++) {
-          const u = i / steps;
-          if (isWall(player.x + cos * dist * u, player.y + sin * dist * u)) { blocked = true; break; }
-        }
-        if (!blocked) { hit = t; hitDist = dist; hitKind = t.type; }
+    // Hitscan (shotgun pellets / chaingun bloom)
+    const nPellets = Math.max(1, w.pellets | 0);
+    const spread = weaponSpread(w);
+    const slack = w.id === "chaingun" ? 0.018 * (1 - zoomAmt * 0.45) : 0.01;
+    const groups = new Map();
+    const volleyTargets = [...enemies.filter(e => e.alive), ...barrels.filter(b => b.alive)];
+    let missBudget = nPellets >= 4 ? 2 : 1;
+    for (let p = 0; p < nPellets; p++) {
+      let ang = player.a;
+      if (spread > 0 && (nPellets === 1 || p > 0)) {
+        ang += (Math.random() - 0.5) * 2 * spread;
       }
-    }
-
-    if (hit) {
-      const dmg = weaponDmg(w);
-      if (hitKind === "barrel") {
-        hit.hp -= dmg;
-        SFX.hit(hit.x, hit.y);
-        if (hit.hp <= 0) detonateBarrel(hit);
-        else {
-          for (let i = 0; i < 4; i++) {
-            particles.push({
-              x: hit.x, y: hit.y, vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
-              life: 0.2, color: [255, 200, 40], size: 1,
-            });
-          }
+      const pcos = Math.cos(ang), psin = Math.sin(ang);
+      const hit = hitscanTarget(pcos, psin, w.range, slack, volleyTargets);
+      if (hit) {
+        let g = groups.get(hit.target);
+        if (!g) {
+          g = { target: hit.target, dmg: 0, pellets: 0 };
+          groups.set(hit.target, g);
         }
+        g.dmg += weaponDmg(w);
+        g.pellets++;
       } else {
-        hurtEnemy(hit, dmg);
-      }
-    } else {
-      const ray = castRay(cos, sin);
-      if (ray.dist < w.range) {
-        const hx = player.x + cos * ray.dist;
-        const hy = player.y + sin * ray.dist;
-        addWallDecal(ray.mapX, ray.mapY, ray.side, ray.texX / TEX);
-        addFloorDecal(hx - cos * 0.15, hy - sin * 0.15, "scorch");
-        for (let i = 0; i < 8; i++) {
-          const a = player.a + Math.PI + (Math.random() - 0.5) * 1.2;
-          const sp = 1 + Math.random() * 3;
-          particles.push({
-            x: hx, y: hy,
-            vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-            life: 0.15 + Math.random() * 0.2,
-            color: Math.random() > 0.5 ? [255, 200, 80] : [160, 160, 160],
-            size: 1 + Math.random() * 2,
-          });
-        }
+        missBudget = applyPelletMiss(pcos, psin, w.range, missBudget);
       }
     }
+    resolveHitscanVolley(groups);
   }
 
   function showEnd(victory) {
@@ -5986,12 +6085,12 @@
     const text = waveBanner.text || "";
     const sub = waveBanner.sub || "";
     const kind = waveBanner.kind || "wave";
-    const scale = kind === "alert" ? 2 : (text.length > 10 ? 2 : 3);
+    const scale = kind === "alert" ? 1 : 2;
     const tw = text.length * 4 * scale;
     const subScale = 1;
     const sw = sub.length * 4 * subScale;
-    const panelW = Math.max(tw, sw) + 28;
-    const panelH = 14 * scale + (sub ? 12 : 0) + 18;
+    const panelW = Math.max(tw, sw) + 18;
+    const panelH = 10 * scale + (sub ? 10 : 0) + 12;
     const tx = ((W - tw) / 2) | 0;
     const ty = ((H * (kind === "alert" ? 0.28 : 0.2)) | 0);
     const px0 = ((W - panelW) / 2) | 0;
@@ -6162,8 +6261,8 @@
   }
 
   function drawMinimap() {
-    const cell = 5;
-    const pad = 6;
+    const cell = 3;
+    const pad = 4;
     const mapPx = MAP_W * cell;
     const panel = mapPx + pad * 2;
     const ox = 6, oy = 6;
@@ -6387,16 +6486,17 @@
     }
   }
 
-  function update(dt) {
-    // Brief combat hitstop (slow-mo punch) — tick the freeze first, then scale sim
+  function update(realDt) {
+    // Hitstop freezes the world, not the player — look/move/fire stay live
+    let dt = realDt;
     if (hitStop > 0) {
-      hitStop = Math.max(0, hitStop - dt);
-      dt *= 0.16;
+      hitStop = Math.max(0, hitStop - realDt);
+      dt = realDt * 0.16;
     }
     time += dt;
-    // FPS sample
+    // FPS sample (real time so auto-quality isn't fooled by hitstop)
     fpsFrames++;
-    fpsAccum += dt;
+    fpsAccum += realDt;
     if (fpsAccum >= AUTO_Q.sampleSec) {
       fps = fpsFrames / fpsAccum;
       fpsFrames = 0;
@@ -6492,7 +6592,7 @@
       zoomTarget = 0;
     }
     {
-      const k = 1 - Math.exp(-dt * (zoomTarget > zoomAmt ? 16 : 10));
+      const k = 1 - Math.exp(-realDt * (zoomTarget > zoomAmt ? 16 : 10));
       zoomAmt += (zoomTarget - zoomAmt) * k;
       if (zoomAmt < 0.002) zoomAmt = 0;
       FOV = BASE_FOV * (1 - zoomAmt * (1 - ADS_FOV_MUL));
@@ -6501,7 +6601,7 @@
       if (fpsFrames % 4 === 0) ds5UpdateAimTrigger(zoomAmt);
     }
 
-    if (PAD.fireCd > 0) PAD.fireCd -= dt;
+    if (PAD.fireCd > 0) PAD.fireCd -= realDt;
     if (running && !musicMenuOpen && padShootHeld) {
       shoot(); // respects per-weapon fireCd
     }
@@ -6510,6 +6610,16 @@
     if (musicMenuOpen) return;
 
     if (!running) return;
+
+    if (spawnQueue.length) {
+      for (let i = spawnQueue.length - 1; i >= 0; i--) {
+        spawnQueue[i].t -= dt;
+        if (spawnQueue[i].t <= 0) {
+          spawnEnemy(spawnQueue[i].kind);
+          spawnQueue.splice(i, 1);
+        }
+      }
+    }
 
     runTime += dt;
     updateCombatDuck(dt);
@@ -6528,7 +6638,7 @@
     const hadBuff = player.buffs.rage > 0 || player.buffs.haste > 0 || player.armor > 0;
     if (player.buffs.rage > 0) player.buffs.rage = Math.max(0, player.buffs.rage - dt);
     if (player.buffs.haste > 0) player.buffs.haste = Math.max(0, player.buffs.haste - dt);
-    if (fireCd > 0) fireCd = Math.max(0, fireCd - dt);
+    if (fireCd > 0) fireCd = Math.max(0, fireCd - realDt);
     // keep HTML health/buffs fresh
     if (fpsFrames % 6 === 0) updateHud();
 
@@ -6540,7 +6650,7 @@
       else p.z = floorH(p.x, p.y) + 0.15 + Math.sin(time * 3 + p.x) * 0.05;
     }
 
-    let speed = 3.2 * dt, rot = 2.4 * dt;
+    let speed = 3.2 * realDt, rot = 2.4 * realDt;
     if (player.buffs.haste > 0) speed *= 1.45;
     if (surfNow === 1 && player.onGround) speed *= WATER_SPEED;
     // Aiming: slight move slowdown for that “holding a bead” feel
@@ -6564,8 +6674,8 @@
     // ADS: slower look while focused on a long shot
     if (stickRX || stickRY) {
       const lookMul = 1 - zoomAmt * 0.55;
-      player.a += stickRX * PAD.lookSens * lookMul * dt;
-      player.pitch -= stickRY * PAD.lookSens * 0.85 * lookMul * dt; // stick up → look up
+      player.a += stickRX * PAD.lookSens * lookMul * realDt;
+      player.pitch -= stickRY * PAD.lookSens * 0.85 * lookMul * realDt; // stick up → look up
       clampPitch();
     }
 
@@ -6596,8 +6706,8 @@
     if (tryAxis(player.x, player.y + my)) player.y += my;
 
     // Vertical physics
-    player.vz -= GRAVITY * dt;
-    player.z += player.vz * dt;
+    player.vz -= GRAVITY * realDt;
+    player.z += player.vz * realDt;
 
     // Ceiling bump
     const headZ = player.z + EYE_H + 0.15;
@@ -6962,14 +7072,14 @@
     }
     renderKillfeed();
 
-    if (shake > 0) shake = Math.max(0, shake - dt * 18);
-    if (muzzle > 0) muzzle = Math.max(0, muzzle - dt);
-    if (gunFrame > 0) gunFrame = Math.max(0, gunFrame - dt);
+    if (shake > 0) shake = Math.max(0, shake - realDt * 18);
+    if (muzzle > 0) muzzle = Math.max(0, muzzle - realDt);
+    if (gunFrame > 0) gunFrame = Math.max(0, gunFrame - realDt);
     // Recoil settles fast; pump racks after the shot (shotgun)
-    if (gunKick > 0) gunKick = Math.max(0, gunKick - dt * (player.weapon === "chaingun" ? 14 : 9));
+    if (gunKick > 0) gunKick = Math.max(0, gunKick - realDt * (player.weapon === "chaingun" ? 14 : 9));
     if (gunPump > 0) {
       const pumpSpeed = player.weapon === "shotgun" ? 2.8 : 10;
-      gunPump = Math.max(0, gunPump - dt * pumpSpeed);
+      gunPump = Math.max(0, gunPump - realDt * pumpSpeed);
     }
 
     // Fade decals slowly
