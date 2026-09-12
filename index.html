@@ -652,10 +652,15 @@
     cooldown: 0,        // seconds until next auto change
     lowStreak: 0,       // consecutive low-FPS samples
     highStreak: 0,      // consecutive high-FPS samples
-    lowFps: 40,         // drop when below
-    highFps: 56,        // raise when above
+    lowFps: 45,         // drop after ~0.8s below this
+    highFps: 48,        // raise when above (can climb off 320×200)
     sampleSec: 0.4,     // matches FPS sampler period
   };
+  // Canvas HUD stack in internal-res pixels. Wave banner sits under this.
+  const HUD_HP_OY = 4;
+  const HUD_HP_BH = 36;
+  const HUD_PROG_OY = 42;
+  const HUD_PROG_BH = 16;
   const TEX = 64;
   const BASE_FOV = Math.PI / 3; // ~60° hip-fire
   const ADS_FOV_MUL = 0.62;    // hold L2 → aim zoom (~37°)
@@ -711,7 +716,7 @@
     if (f < AUTO_Q.lowFps) {
       AUTO_Q.lowStreak++;
       AUTO_Q.highStreak = 0;
-      // 2 samples (~0.8s) of low FPS → drop one step
+      // Two samples (~0.8s) of low FPS → drop one step
       if (AUTO_Q.lowStreak >= 2 && resIdx > AUTO_Q.minIdx) {
         applyResolution(resIdx - 1, { auto: true });
         AUTO_Q.cooldown = 1.4;
@@ -721,8 +726,8 @@
     } else if (f > AUTO_Q.highFps) {
       AUTO_Q.highStreak++;
       AUTO_Q.lowStreak = 0;
-      // Need longer good streak before climbing (avoid thrash)
-      if (AUTO_Q.highStreak >= 4 && resIdx < AUTO_Q.maxIdx) {
+      // Longer good streak before climbing (avoid thrash)
+      if (AUTO_Q.highStreak >= 5 && resIdx < AUTO_Q.maxIdx) {
         applyResolution(resIdx + 1, { auto: true });
         AUTO_Q.cooldown = 2.0;
         AUTO_Q.lowStreak = 0;
@@ -2825,9 +2830,9 @@
     const dur = opts.t != null ? opts.t
       : kind === "boss" ? 3.8
       : kind === "phase" ? 3.0
-      : kind === "level" ? 3.2
+      : kind === "level" ? 1.8
       : kind === "alert" ? 1.6
-      : 2.8;
+      : 1.8;
     waveBanner = {
       t: dur,
       maxT: dur,
@@ -4272,11 +4277,15 @@
     if (n > 1) wavesCleared++;
     const L = currentLevel();
     const maxW = L.maxWaves || (levelIdx === 0 ? 6 : MAX_WAVE_L2);
-    pushBanner(`WAVE ${n}`, {
-      kind: "wave",
-      t: 2.9,
-      sub: `L${levelIdx + 1} · ${L.name}${levelIdx > 0 ? ` · ${n}/${maxW}` : ""}`,
-    });
+    if (n === 1) {
+      pushBanner(L.name, { kind: "level", t: 1.8 });
+    } else {
+      pushBanner(`WAVE ${n}`, {
+        kind: "wave",
+        t: 1.8,
+        sub: levelIdx > 0 ? `${n}/${maxW}` : "",
+      });
+    }
     killMsgs.unshift({ text: `${L.name} · WAVE ${n}`, t: 3.0 });
     if (running) {
       if (n > 1) SFX.waveClear();
@@ -4422,9 +4431,6 @@
     spawnBarrels();
     spawnProps();
     spawnPickups();
-    pushBanner(`LEVEL ${levelIdx + 1}`, {
-      kind: "level", t: 3.4, sub: L.name,
-    });
     killMsgs.unshift({ text: `— ${L.name} —`, t: 3.5 });
     if (running) SFX.wave();
     startWave(1);
@@ -4668,9 +4674,9 @@
     const pipsW = PLAYER_MAX_HP * pipW + (PLAYER_MAX_HP - 1) * gap;
     const padX = 6, padY = 4;
     const bw = Math.max(pipsW + padX * 2, 72);
-    const bh = 4 + 6 + 2 + pipH + 2 + 8 + 4; // label + gap + pips + gap + value
+    const bh = HUD_HP_BH;
     const ox = ((W - bw) / 2) | 0;
-    const oy = 4;
+    const oy = HUD_HP_OY;
 
     // Panel + border
     for (let y = 0; y < bh; y++) {
@@ -4725,9 +4731,9 @@
     if (!running && !dead) return;
     const snap = progressSnapshot();
     const bw = Math.min(W - 16, 120);
-    const bh = 16;
+    const bh = HUD_PROG_BH;
     const ox = ((W - bw) / 2) | 0;
-    const oy = 42; // under HP plate
+    const oy = HUD_PROG_OY;
     // Panel
     for (let y = 0; y < bh; y++) {
       for (let x = 0; x < bw; x++) {
@@ -5492,7 +5498,8 @@
     const invDet = 1 / (planeX * dirY - dirX * planeY);
     const transformX = invDet * (dirY * dx - dirX * dy);
     const transformY = invDet * (-planeY * dx + planeX * dy);
-    if (transformY <= 0.08) return;
+    const nearClip = (entity.type === "enemy" && entity.alive) ? 0.12 : 0.22;
+    if (transformY <= nearClip) return;
 
     const frames = entity.sprites;
     const fi = frames.length > 1 ? ((entity.frame | 0) % frames.length) : 0;
@@ -5514,10 +5521,13 @@
     const bob = Math.sin(entity.bob || 0) * bobAmp;
     const topY = projectY(entZ + worldH, transformY);
     const botY = projectY(entZ, transformY);
-    const spriteH = Math.max(2, botY - topY);
-    const spriteW = ((spriteH * spr.w) / spr.h) | 0;
-    // Only bob upward slightly for floating pickups; grounded stay planted
-    const drawStartY = (topY + (entity.grounded ? 0 : bob)) | 0;
+    const rawH = Math.max(2, botY - topY);
+    const maxH = (H * 0.70) | 0;
+    const spriteH = Math.min(rawH, maxH);
+    const spriteW = Math.max(1, ((spriteH * spr.w) / spr.h) | 0);
+    const step = spriteH > ((H * 0.42) | 0) ? 2 : 1;
+    // Feet stay planted when height is capped; only pickups bob up
+    const drawStartY = ((botY - spriteH) + (entity.grounded ? 0 : bob)) | 0;
     const drawStartX = (spriteScreenX - spriteW / 2) | 0;
     let shade = lightAt(entity.x, entity.y, transformY);
     if (entity.dying) shade *= 0.75;
@@ -5542,12 +5552,12 @@
       }
     }
 
-    for (let sx = 0; sx < spriteW; sx++) {
+    for (let sx = 0; sx < spriteW; sx += step) {
       const stripe = drawStartX + sx;
       if (stripe < 0 || stripe >= W) continue;
       if (zbuf[stripe] < transformY - 0.08) continue;
       const texX = ((sx * spr.w) / spriteW) | 0;
-      for (let sy = 0; sy < spriteH; sy++) {
+      for (let sy = 0; sy < spriteH; sy += step) {
         const texY = ((sy * spr.h) / spriteH) | 0;
         const pid = spr.data[texY * spr.w + texX];
         if (!pid) continue;
@@ -5577,6 +5587,13 @@
           b = Math.min(255, b + 20 * cg);
         }
         put(stripe, y, r, g, b);
+        if (step > 1) {
+          if (stripe + 1 < W) put(stripe + 1, y, r, g, b);
+          if (y + 1 < H) {
+            put(stripe, y + 1, r, g, b);
+            if (stripe + 1 < W) put(stripe + 1, y + 1, r, g, b);
+          }
+        }
       }
     }
 
@@ -5651,13 +5668,14 @@
       const dx = ex.x - player.x, dy = ex.y - player.y;
       const transformX = invDet * (dirY * dx - dirX * dy);
       const transformY = invDet * (-planeY * dx + planeX * dy);
-      if (transformY <= 0.1) continue;
+      if (transformY <= 0.22) continue;
       const sx = ((W / 2) * (1 + transformX / transformY)) | 0;
       const sy = (H / 2) | 0;
-      const rad = Math.max(2, ((ex.r * H) / transformY) | 0);
+      const rad = Math.min((H * 0.28) | 0, Math.max(2, ((ex.r * H) / transformY) | 0));
       const lifeK = 1 - ex.t / ex.life;
-      for (let y = -rad; y <= rad; y++) {
-        for (let x = -rad; x <= rad; x++) {
+      const exStep = rad > 18 ? 2 : 1;
+      for (let y = -rad; y <= rad; y += exStep) {
+        for (let x = -rad; x <= rad; x += exStep) {
           const d2 = x * x + y * y;
           if (d2 > rad * rad) continue;
           const edge = d2 / (rad * rad);
@@ -5668,6 +5686,13 @@
           const g = ((180 - edge * 120) * lifeK) | 0;
           const b = ((20 + edge * 40) * lifeK * (1 - edge)) | 0;
           put(px, py, r, g, b);
+          if (exStep > 1) {
+            if (px + 1 < W) put(px + 1, py, r, g, b);
+            if (py + 1 < H) {
+              put(px, py + 1, r, g, b);
+              if (px + 1 < W) put(px + 1, py + 1, r, g, b);
+            }
+          }
         }
       }
     }
@@ -5677,14 +5702,14 @@
       const dx = pr.x - player.x, dy = pr.y - player.y;
       const transformX = invDet * (dirY * dx - dirX * dy);
       const transformY = invDet * (-planeY * dx + planeX * dy);
-      if (transformY <= 0.12 || transformY > 16) continue;
+      if (transformY <= 0.18 || transformY > 16) continue;
       const sx = ((W / 2) * (1 + transformX / transformY)) | 0;
       const sy = projectY(pr.z != null ? pr.z : 0.4, transformY);
       const [cr, cg, cb] = pr.color || [255, 140, 40];
       const [gr, gg, gb] = pr.glow || pr.color || [255, 120, 30];
 
       // Soft additive glow (tight — no giant orange blobs)
-      const glowR = Math.max(3, ((0.16 * H) / transformY) | 0);
+      const glowR = Math.min((H * 0.12) | 0, Math.max(3, ((0.16 * H) / transformY) | 0));
       for (let y = -glowR; y <= glowR; y++) {
         for (let x = -glowR; x <= glowR; x++) {
           const d2 = x * x + y * y;
@@ -5702,7 +5727,7 @@
       }
 
       // Motion streak (short tail opposite travel)
-      const trailLen = Math.max(2, Math.min(10, ((0.14 * H) / transformY) | 0));
+      const trailLen = Math.max(2, Math.min(8, ((0.14 * H) / transformY) | 0));
       const vAng = Math.atan2(pr.vy || 0, pr.vx || 0) - player.a;
       const streakX = Math.cos(vAng);
       // project trail opposite velocity in screen X mostly
@@ -5724,8 +5749,8 @@
         const spr = frames[fi];
         // World size ~0.28–0.34 units → small on screen
         const worldSize = pr.boss || pr.kind === "baron" ? 0.32 : pr.kind === "caco" ? 0.3 : 0.26;
-        const spriteH = Math.max(4, ((worldSize * H) / transformY) | 0);
-        const spriteW = ((spriteH * spr.w) / spr.h) | 0;
+        const spriteH = Math.min((H * 0.22) | 0, Math.max(4, ((worldSize * H) / transformY) | 0));
+        const spriteW = Math.max(1, ((spriteH * spr.w) / spr.h) | 0);
         const drawX = (sx - spriteW / 2) | 0;
         const drawY = (sy - spriteH / 2) | 0;
         const pulse = 0.85 + 0.15 * Math.sin(time * 18 + pr.spin);
@@ -5759,7 +5784,7 @@
         }
       } else {
         // Fallback tiny core
-        const rad = Math.max(2, ((0.1 * H) / transformY) | 0);
+        const rad = Math.min((H * 0.14) | 0, Math.max(2, ((0.1 * H) / transformY) | 0));
         for (let y = -rad; y <= rad; y++) {
           for (let x = -rad; x <= rad; x++) {
             if (x * x + y * y > rad * rad) continue;
@@ -5777,11 +5802,11 @@
       const dx = p.x - player.x, dy = p.y - player.y;
       const transformX = invDet * (dirY * dx - dirX * dy);
       const transformY = invDet * (-planeY * dx + planeX * dy);
-      if (transformY <= 0.1) continue;
+      if (transformY <= 0.18) continue;
       const sx = ((W / 2) * (1 + transformX / transformY)) | 0;
       // world-z particles if set
       const sy = p.z != null ? projectY(p.z, transformY) : (H / 2) | 0;
-      const sc = Math.max(1, (3 / transformY) | 0);
+      const sc = Math.min(6, Math.max(1, (3 / transformY) | 0));
       const a = Math.min(1, p.life * 2);
       const [cr, cg, cb] = p.color;
       for (let y = -sc; y <= sc; y++) for (let x = -sc; x <= sc; x++) {
@@ -6092,7 +6117,8 @@
     const panelW = Math.max(tw, sw) + 18;
     const panelH = 10 * scale + (sub ? 10 : 0) + 12;
     const tx = ((W - tw) / 2) | 0;
-    const ty = ((H * (kind === "alert" ? 0.28 : 0.2)) | 0);
+    const stackBottom = HUD_PROG_OY + HUD_PROG_BH;
+    const ty = stackBottom + 14;
     const px0 = ((W - panelW) / 2) | 0;
     const py0 = ty - 10;
 
@@ -7108,6 +7134,12 @@
     running = true;
     dead = false;
     won = false;
+    AUTO_Q.lowStreak = 0;
+    AUTO_Q.highStreak = 0;
+    AUTO_Q.cooldown = 2.0;
+    if (resIdx !== AUTO_Q.maxIdx) {
+      applyResolution(AUTO_Q.maxIdx, { auto: true, announce: false });
+    }
     msgEl.classList.add("hidden");
     msgEl.classList.remove("title-mode", "win-mode", "dead-mode");
     msgScore.style.display = "none";
