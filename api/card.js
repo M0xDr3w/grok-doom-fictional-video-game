@@ -26,7 +26,8 @@ export default function handler(request) {
   const seed = param(url, "s", "").toUpperCase();
   const mut = param(url, "m", "standard").toLowerCase();
   const arena = param(url, "a", "hell").toLowerCase();
-  const qs = `k=${encodeURIComponent(kills)}&t=${encodeURIComponent(time)}&w=${encodeURIComponent(wave)}&b=${encodeURIComponent(best)}&v=${win ? "1" : "0"}&s=${encodeURIComponent(seed)}&m=${encodeURIComponent(mut)}&a=${encodeURIComponent(arena)}`;
+  const daily = param(url, "d", "0") === "1";
+  const qs = `k=${encodeURIComponent(kills)}&t=${encodeURIComponent(time)}&w=${encodeURIComponent(wave)}&b=${encodeURIComponent(best)}&v=${win ? "1" : "0"}&s=${encodeURIComponent(seed)}&m=${encodeURIComponent(mut)}&a=${encodeURIComponent(arena)}${daily ? "&d=1" : ""}`;
   const playQs = [];
   if (seed) playQs.push("s=" + encodeURIComponent(seed));
   if (mut && mut !== "standard") playQs.push("m=" + encodeURIComponent(mut));

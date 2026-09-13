@@ -479,10 +479,15 @@
     padding: 6px 4px;
   }
   #seedInput:focus { outline: 1px solid var(--amber); }
-  #seedRoll {
+  #seedRoll, #seedDaily {
     margin-top: 0 !important;
     padding: 6px 12px !important;
     font-size: 11px !important;
+  }
+  #seedDaily.on {
+    background: #3a1010 !important;
+    color: var(--amber) !important;
+    border-color: var(--amber) !important;
   }
   /* Below canvas FPS strip (~top 14px of game buffer); stacked lines, no pile-up */
   #killfeed {
@@ -594,6 +599,7 @@
         <div class="seed-row">
           <label>SEED <input id="seedInput" maxlength="4" spellcheck="false" autocomplete="off" placeholder="AUTO" aria-label="Run seed" /></label>
           <button type="button" id="seedRoll" class="secondary">ROLL</button>
+          <button type="button" id="seedDaily" class="secondary">DAILY</button>
         </div>
       </div>
       <div class="keys" id="msgKeys">
@@ -1172,6 +1178,7 @@
   };
   let runSeed = "";
   let runMutator = "standard";
+  let runDaily = false;
   let worldRand = Math.random;
 
   function playerMaxHp() {
@@ -1218,6 +1225,39 @@
     const id = String(raw || "").toLowerCase();
     return MUTATORS[id] ? id : "standard";
   }
+  function utcDayKey() {
+    const d = new Date();
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    return y + m + day;
+  }
+  function dailyChallenge() {
+    let x = hashSeed("GROKDOOM-DAILY-" + utcDayKey());
+    let seed = "";
+    for (let i = 0; i < 4; i++) {
+      seed += SEED_ALPHABET[x % SEED_ALPHABET.length];
+      x = Math.imul(x ^ (x >>> 13), 1274126177) >>> 0;
+    }
+    const muts = ["standard", "glass", "sprint", "packed"];
+    return {
+      seed,
+      mut: muts[x % muts.length],
+      arena: (x >>> 8) % 3,
+    };
+  }
+  function isTodayDaily() {
+    const d = dailyChallenge();
+    return runSeed === d.seed && runMutator === d.mut && startArenaIdx === d.arena;
+  }
+  function applyDaily() {
+    const d = dailyChallenge();
+    runSeed = d.seed;
+    runMutator = d.mut;
+    startArenaIdx = d.arena;
+    runDaily = true;
+    syncTitleRunOpts();
+  }
   function syncTitleRunOpts() {
     const input = document.getElementById("seedInput");
     if (input && runSeed) input.value = runSeed;
@@ -1232,6 +1272,8 @@
         btn.classList.toggle("on", (btn.getAttribute("data-arena") | 0) === startArenaIdx);
       });
     }
+    const dailyBtn = document.getElementById("seedDaily");
+    if (dailyBtn) dailyBtn.classList.toggle("on", !!runDaily);
   }
   function commitTitleOptions() {
     const input = document.getElementById("seedInput");
@@ -1246,6 +1288,7 @@
       if (runMutator !== "standard") q.set("m", runMutator);
       const slug = (LEVELS[startArenaIdx] && LEVELS[startArenaIdx].slug) || "hell";
       if (startArenaIdx > 0) q.set("a", slug);
+      if (runDaily && isTodayDaily()) q.set("daily", "1");
       history.replaceState(null, "", "?" + q.toString());
     } catch (_) {}
   }
@@ -1255,6 +1298,10 @@
       const s = normalizeSeed(q.get("s") || "");
       if (s) runSeed = s;
       if (q.get("m")) runMutator = parseMutator(q.get("m"));
+      if (q.get("daily") === "1") {
+        applyDaily();
+        return;
+      }
       const slugs = { hell: 0, citadel: 1, ash: 2 };
       const a = (q.get("a") || "").toLowerCase();
       if (a && slugs[a] != null) startArenaIdx = slugs[a];
@@ -5813,7 +5860,7 @@
 
     ctx.fillStyle = "#888888";
     ctx.font = `14px ${family}`;
-    const runLine = `SEED ${runSeed || "----"} · ${mutatorLabel(runMutator)} · ${currentLevel().name || ""}`;
+    const runLine = `${isTodayDaily() ? "DAILY · " : ""}SEED ${runSeed || "----"} · ${mutatorLabel(runMutator)} · ${currentLevel().name || ""}`;
     ctx.fillText(runLine, SHARE_W / 2, 838);
     ctx.fillStyle = amber;
     ctx.font = `18px ${family}`;
@@ -5832,14 +5879,15 @@
       m: runMutator || "standard",
       a: (currentLevel() && currentLevel().slug) || "hell",
     });
+    if (isTodayDaily()) q.set("d", "1");
     return SHARE_URL + "/api/card?" + q.toString();
   }
 
   function shareCaption(victory) {
     const n = Math.max(0, kills | 0);
     const line = victory
-      ? `RIP AND TEAR — ${n} kills in GROK DOOM (fictional video game)`
-      : `YOU DIED — ${n} kills in GROK DOOM (fictional video game)`;
+      ? `${isTodayDaily() ? "DAILY · " : ""}RIP AND TEAR — ${n} kills in GROK DOOM (fictional video game)`
+      : `${isTodayDaily() ? "DAILY · " : ""}YOU DIED — ${n} kills in GROK DOOM (fictional video game)`;
     return line + "\n" + shareCardPageUrl(victory);
   }
 
@@ -5969,7 +6017,7 @@
       msgKeys.innerHTML = (victory
         ? "R — run it back &nbsp;·&nbsp; DualSense ✕ also restarts<br>SHARE CARD — opens X with the run image"
         : "R — try again &nbsp;·&nbsp; DualSense ✕ restarts<br>SHARE CARD — opens X with the run image")
-        + `<br>SEED ${runSeed || "----"} · ${mutatorLabel(runMutator)} · ${currentLevel().name || ""}`;
+        + `<br>${isTodayDaily() ? "DAILY · " : ""}SEED ${runSeed || "----"} · ${mutatorLabel(runMutator)} · ${currentLevel().name || ""}`;
     }
     startBtn.textContent = victory ? "PLAY AGAIN" : "RISE AGAIN";
     if (shareBtn) {
@@ -7823,7 +7871,10 @@
     if (msgKeys) msgKeys.style.display = "none";
     startBtn.textContent = "ENTER THE ARENA";
     if (!getGamepad()) canvas.requestPointerLock?.();
-    killMsgs.unshift({ text: `SEED ${runSeed} · ${mutatorLabel(runMutator)}`, t: 3.2 });
+    killMsgs.unshift({
+      text: `${isTodayDaily() ? "DAILY · " : ""}SEED ${runSeed} · ${mutatorLabel(runMutator)}`,
+      t: 3.2,
+    });
 
     preloadAudioAssets().then((st) => {
       const tr = st && st.tracks ? st.tracks : 0;
@@ -8008,6 +8059,7 @@
       const btn = e.target.closest(".mut-btn");
       if (!btn) return;
       runMutator = parseMutator(btn.getAttribute("data-mut"));
+      runDaily = false;
       syncTitleRunOpts();
     });
   }
@@ -8018,6 +8070,7 @@
         e.preventDefault();
         e.stopPropagation();
         startArenaIdx = Math.max(0, Math.min(LEVELS.length - 1, btn.getAttribute("data-arena") | 0));
+        runDaily = false;
         syncTitleRunOpts();
       });
     });
@@ -8034,6 +8087,9 @@
     seedInput.addEventListener("keyup", (e) => e.stopPropagation());
     seedInput.addEventListener("input", () => {
       seedInput.value = normalizeSeed(seedInput.value);
+      runDaily = false;
+      const dailyBtn = document.getElementById("seedDaily");
+      if (dailyBtn) dailyBtn.classList.remove("on");
     });
   }
   const seedRoll = document.getElementById("seedRoll");
@@ -8042,7 +8098,19 @@
       e.preventDefault();
       e.stopPropagation();
       runSeed = rollSeed();
+      runDaily = false;
       if (seedInput) seedInput.value = runSeed;
+      const dailyBtn = document.getElementById("seedDaily");
+      if (dailyBtn) dailyBtn.classList.remove("on");
+    });
+  }
+
+  const seedDaily = document.getElementById("seedDaily");
+  if (seedDaily) {
+    seedDaily.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      applyDaily();
     });
   }
 
