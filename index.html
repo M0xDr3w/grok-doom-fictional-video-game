@@ -424,6 +424,66 @@
   #msg.title-mode #shareBtn { display: none; }
   #msg.dead-mode #shareBtn,
   #msg.win-mode #shareBtn { display: inline-block; }
+  #msg.title-mode #titleBtn { display: none; }
+  #runOpts {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: min(420px, 94%);
+    margin: 4px 0 2px;
+  }
+  #msg.title-mode #runOpts { display: flex; }
+  .mut-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .mut-btn {
+    margin-top: 0 !important;
+    padding: 7px 10px !important;
+    font-size: 10px !important;
+    letter-spacing: 1.2px !important;
+    background: #222 !important;
+    color: #aaa !important;
+    border: 1px solid #444 !important;
+    box-shadow: none !important;
+  }
+  .mut-btn:hover { border-color: var(--amber) !important; color: var(--amber) !important; }
+  .mut-btn.on {
+    background: #3a1010 !important;
+    color: var(--amber) !important;
+    border-color: var(--amber) !important;
+  }
+  .seed-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #888;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+  }
+  .seed-row label { display: flex; align-items: center; gap: 8px; }
+  #seedInput {
+    width: 5.2ch;
+    background: #120808;
+    border: 1px solid #3a2020;
+    color: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 0.2ch;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 6px 4px;
+  }
+  #seedInput:focus { outline: 1px solid var(--amber); }
+  #seedRoll {
+    margin-top: 0 !important;
+    padding: 6px 12px !important;
+    font-size: 11px !important;
+  }
   /* Below canvas FPS strip (~top 14px of game buffer); stacked lines, no pile-up */
   #killfeed {
     position: absolute;
@@ -519,6 +579,18 @@
       </div>
       <div id="msgScore" class="stats" style="display:none"></div>
       <div id="msgRecord" class="record" style="display:none"></div>
+      <div id="runOpts">
+        <div class="mut-row" id="mutRow">
+          <button type="button" class="mut-btn on" data-mut="standard">STANDARD</button>
+          <button type="button" class="mut-btn" data-mut="glass">GLASS CANNON</button>
+          <button type="button" class="mut-btn" data-mut="sprint">HELL SPRINT</button>
+          <button type="button" class="mut-btn" data-mut="packed">PACKED</button>
+        </div>
+        <div class="seed-row">
+          <label>SEED <input id="seedInput" maxlength="4" spellcheck="false" autocomplete="off" placeholder="AUTO" aria-label="Run seed" /></label>
+          <button type="button" id="seedRoll" class="secondary">ROLL</button>
+        </div>
+      </div>
       <div class="keys" id="msgKeys">
         <b style="color:var(--amber)">Keyboard</b><br>
         WASD move · Space jump · Click shoot · RMB/F aim · 1-3 / Q-E weapons<br>
@@ -530,6 +602,7 @@
       <div class="btn-row">
         <button type="button" id="startBtn">ENTER THE ARENA</button>
         <button type="button" id="shareBtn" class="secondary">SHARE CARD</button>
+        <button type="button" id="titleBtn" class="secondary">TITLE</button>
         <button type="button" id="msgFsBtn" class="secondary">⛶ FULLSCREEN</button>
       </div>
     </div>
@@ -983,6 +1056,92 @@
   const PLAYER_MAX_HP = 5;   // player lives on a 1–5 health scale
   const LAVA_DMG = 1;        // 1 heart per lava tick
   const LAVA_TICK = 0.85;
+  const SEED_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  const MUTATORS = {
+    standard: { id: "standard", label: "STANDARD" },
+    glass: { id: "glass", label: "GLASS CANNON" },
+    sprint: { id: "sprint", label: "HELL SPRINT" },
+    packed: { id: "packed", label: "PACKED" },
+  };
+  let runSeed = "";
+  let runMutator = "standard";
+  let worldRand = Math.random;
+
+  function playerMaxHp() {
+    return runMutator === "glass" ? 1 : PLAYER_MAX_HP;
+  }
+  function mutatorLabel(id) {
+    const m = MUTATORS[id] || MUTATORS.standard;
+    return m.label;
+  }
+  function normalizeSeed(raw) {
+    if (!raw) return "";
+    let s = String(raw).toUpperCase().replace(/[^0-9A-Z]/g, "");
+    s = s.replace(/I/g, "1").replace(/L/g, "1").replace(/O/g, "0").replace(/U/g, "V");
+    return s.slice(0, 4);
+  }
+  function rollSeed() {
+    let s = "";
+    for (let i = 0; i < 4; i++) s += SEED_ALPHABET[(Math.random() * SEED_ALPHABET.length) | 0];
+    return s;
+  }
+  function hashSeed(str) {
+    let h = 2166136261;
+    const s = String(str);
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function mulberry32(a) {
+    return function () {
+      a |= 0;
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function seedWorld(code) {
+    runSeed = normalizeSeed(code) || rollSeed();
+    worldRand = mulberry32(hashSeed(runSeed));
+  }
+  function parseMutator(raw) {
+    const id = String(raw || "").toLowerCase();
+    return MUTATORS[id] ? id : "standard";
+  }
+  function syncTitleRunOpts() {
+    const input = document.getElementById("seedInput");
+    if (input && runSeed) input.value = runSeed;
+    const row = document.getElementById("mutRow");
+    if (!row) return;
+    row.querySelectorAll(".mut-btn").forEach((btn) => {
+      btn.classList.toggle("on", btn.getAttribute("data-mut") === runMutator);
+    });
+  }
+  function commitTitleOptions() {
+    const input = document.getElementById("seedInput");
+    const typed = input ? normalizeSeed(input.value) : "";
+    runMutator = parseMutator(runMutator);
+    seedWorld(typed || runSeed || rollSeed());
+    if (input) input.value = runSeed;
+    syncTitleRunOpts();
+    try {
+      const q = new URLSearchParams();
+      q.set("s", runSeed);
+      if (runMutator !== "standard") q.set("m", runMutator);
+      history.replaceState(null, "", "?" + q.toString());
+    } catch (_) {}
+  }
+  function parseRunQuery() {
+    try {
+      const q = new URLSearchParams(location.search);
+      const s = normalizeSeed(q.get("s") || "");
+      if (s) runSeed = s;
+      if (q.get("m")) runMutator = parseMutator(q.get("m"));
+    } catch (_) {}
+  }
 
   // Solid walls (blocks movement/rays). 4 is a floor light (walkable).
   function wallId(c) { return c === 1 || c === 2 || c === 3 ? c : 0; }
@@ -3633,8 +3792,8 @@
     const minDist2 = opts.minDist2 != null ? opts.minDist2 : 16; // ~4 units
     const tryPoint = (needFwd) => {
       for (let i = 0; i < 80; i++) {
-        const x = 1.5 + Math.random() * (MAP_W - 3);
-        const y = 1.5 + Math.random() * (MAP_H - 3);
+        const x = 1.5 + worldRand() * (MAP_W - 3);
+        const y = 1.5 + worldRand() * (MAP_H - 3);
         if (isWall(x, y) || cell(x, y) === 4) continue;
         const dx = x - player.x, dy = y - player.y;
         const d2 = dx * dx + dy * dy;
@@ -3705,6 +3864,7 @@
       base.speed *= 1 + (wave - 2) * 0.04;
       base.shootCd *= Math.max(0.82, 1 - (wave - 2) * 0.06);
     }
+    if (runMutator === "sprint") base.speed *= 1.4;
     enemies.push({
       ...base, x: p.x, y: p.y, z: p.z, maxHp: base.hp, boss: !!opts.boss,
       // Long wind-up so the arena doesn't open with a fireball storm
@@ -4270,21 +4430,29 @@
   function waveSpec(n) {
     const L = currentLevel();
     const table = L.waveTable;
+    let spec;
     if (table && table.length) {
       const row = table[Math.min(n - 1, table.length - 1)];
-      return {
+      spec = {
         imps: row.imps | 0,
         cacos: row.cacos | 0,
         barons: row.barons | 0,
       };
+    } else {
+      // Legacy fallback
+      const lvl = levelIdx + 1;
+      spec = {
+        imps: 3 + n * 2 + (lvl > 1 ? 2 : 0),
+        cacos: n >= 2 ? n - 1 + (lvl > 1 ? 1 : 0) : (n === 1 ? 1 : 0),
+        barons: n >= 3 ? n - 2 + (lvl > 1 ? 1 : 0) : (lvl > 1 && n >= 2 ? 1 : 0),
+      };
     }
-    // Legacy fallback
-    const lvl = levelIdx + 1;
-    return {
-      imps: 3 + n * 2 + (lvl > 1 ? 2 : 0),
-      cacos: n >= 2 ? n - 1 + (lvl > 1 ? 1 : 0) : (n === 1 ? 1 : 0),
-      barons: n >= 3 ? n - 2 + (lvl > 1 ? 1 : 0) : (lvl > 1 && n >= 2 ? 1 : 0),
-    };
+    if (runMutator === "packed") {
+      spec.imps += 1;
+      spec.cacos += 1;
+      if (spec.barons > 0) spec.barons += 1;
+    }
+    return spec;
   }
 
   function startWave(n) {
@@ -4357,7 +4525,7 @@
     if (alive > waveStartAlive * 0.45) return;
     waveLootDropped = true;
     const spot = randomEmpty();
-    const kind = player.hp <= 2 ? "health" : (player.armor < 1 ? "armor" : (Math.random() < 0.5 ? "health" : "armor"));
+    const kind = player.hp <= 2 ? "health" : (player.armor < 1 ? "armor" : (worldRand() < 0.5 ? "health" : "armor"));
     pickups.push({
       x: spot.x, y: spot.y, z: spot.z + 0.15, alive: true, type: "pickup", kind,
       sprites: kind === "armor" ? SPR_PICK_ARMOR : SPR_PICK_HEALTH,
@@ -4435,14 +4603,15 @@
     player.pitch = 0;
     gunKick = 0; gunPump = 0; gunFrame = 0;
     if (!opts.keepLoadout) {
-      player.hp = PLAYER_MAX_HP;
+      player.hp = playerMaxHp();
       player.armor = 0;
       player.weapon = "shotgun";
       player.ammo = { shotgun: Infinity, chaingun: 0, rocket: 0 };
       player.buffs = { rage: 0, haste: 0 };
     } else {
-      // Enter level 2 with a small top-up
-      player.hp = Math.min(PLAYER_MAX_HP, Math.max(player.hp, 3));
+      // Enter level 2 with a small top-up (glass stays at 1)
+      const maxHp = playerMaxHp();
+      player.hp = Math.min(maxHp, Math.max(player.hp, Math.min(3, maxHp)));
       player.armor = Math.min(3, player.armor + 1);
     }
     spawnBarrels();
@@ -4499,7 +4668,7 @@
     const kind = p.kind;
     if (kind === "health") {
       const before = player.hp;
-      player.hp = Math.min(PLAYER_MAX_HP, player.hp + 1);
+      player.hp = Math.min(playerMaxHp(), player.hp + 1);
       killMsgs.unshift({ text: player.hp > before ? "+1 HEALTH" : "HEALTH FULL", t: 2 });
     } else if (kind === "armor") {
       player.armor = Math.min(3, player.armor + 2);
@@ -4562,8 +4731,9 @@
   }
 
   function resetGame() {
+    seedWorld(runSeed || rollSeed());
     player = {
-      x: 1.5, y: 1.5, z: 0, vz: 0, onGround: true, a: Math.PI / 4, pitch: 0, hp: PLAYER_MAX_HP, surface: 0,
+      x: 1.5, y: 1.5, z: 0, vz: 0, onGround: true, a: Math.PI / 4, pitch: 0, hp: playerMaxHp(), surface: 0,
       weapon: "shotgun",
       ammo: { shotgun: Infinity, chaingun: 0, rocket: 0 },
       armor: 0,
@@ -4617,8 +4787,9 @@
   }
 
   function updateHud() {
-    const hp = Math.max(0, Math.min(PLAYER_MAX_HP, Math.ceil(player.hp)));
-    if (hpEl) hpEl.textContent = `${hp}/${PLAYER_MAX_HP}`;
+    const maxHp = playerMaxHp();
+    const hp = Math.max(0, Math.min(maxHp, Math.ceil(player.hp)));
+    if (hpEl) hpEl.textContent = `${hp}/${maxHp}`;
     if (statHpEl) {
       statHpEl.classList.toggle("hp-low", hp <= 2);
       statHpEl.classList.toggle("hp-mid", hp === 3);
@@ -4681,14 +4852,16 @@
   // On-canvas HP plate — top-center (clear of minimap left, killfeed right, HTML HUD bottom)
   function drawHealthBar() {
     if (!running && !dead) return;
-    const hp = Math.max(0, Math.min(PLAYER_MAX_HP, Math.ceil(player.hp)));
+    const maxHp = playerMaxHp();
+    const hp = Math.max(0, Math.min(maxHp, Math.ceil(player.hp)));
     const hr = hp <= 2 ? 255 : hp === 3 ? 255 : 70;
     const hg = hp <= 2 ? 55 : hp === 3 ? 200 : 255;
     const hb = hp <= 2 ? 55 : hp === 3 ? 40 : 95;
 
     // Layout (top → bottom): label row · pip row · value row — nothing overlaps
     const pipW = 12, pipH = 10, gap = 3;
-    const pipsW = PLAYER_MAX_HP * pipW + (PLAYER_MAX_HP - 1) * gap;
+    const pipN = maxHp;
+    const pipsW = pipN * pipW + (pipN - 1) * gap;
     const padX = 6, padY = 4;
     const bw = Math.max(pipsW + padX * 2, 72);
     const bh = HUD_HP_BH;
@@ -4722,7 +4895,7 @@
     // Row 2: heart pips (primary readable element)
     const barX = ox + ((bw - pipsW) / 2) | 0;
     const barY = oy + padY + 8;
-    for (let i = 0; i < PLAYER_MAX_HP; i++) {
+    for (let i = 0; i < pipN; i++) {
       const px = barX + i * (pipW + gap);
       for (let y = 0; y < pipH; y++) {
         for (let x = 0; x < pipW; x++) {
@@ -4738,7 +4911,7 @@
     }
 
     // Row 3: numeric under pips (centered)
-    const num = `${hp}/${PLAYER_MAX_HP}`;
+    const num = `${hp}/${maxHp}`;
     const nw = num.length * 4;
     drawText3(ox + ((bw - nw) / 2) | 0, barY + pipH + 3, num, hr, hg, hb, 1);
   }
@@ -5054,6 +5227,7 @@
   function weaponDmg(w) {
     let d = w.dmgMin + Math.random() * (w.dmgMax - w.dmgMin);
     if (player.buffs.rage > 0) d *= 2;
+    if (runMutator === "glass") d *= 1.75;
     return d;
   }
 
@@ -5353,6 +5527,10 @@
       ctx.fillText(stats[i][1], x, barY + 48);
     }
 
+    ctx.fillStyle = "#888888";
+    ctx.font = `14px ${family}`;
+    const runLine = `SEED ${runSeed || "----"} · ${mutatorLabel(runMutator)}`;
+    ctx.fillText(runLine, SHARE_W / 2, 838);
     ctx.fillStyle = amber;
     ctx.font = `18px ${family}`;
     ctx.fillText("grokdoom.vercel.app", SHARE_W / 2, 880);
@@ -5366,6 +5544,8 @@
       w: String(Math.max(1, wave | 0)),
       b: String(Math.max(highScore, kills) | 0),
       v: victory ? "1" : "0",
+      s: runSeed || "",
+      m: runMutator || "standard",
     });
     return SHARE_URL + "/api/card?" + q.toString();
   }
@@ -5501,9 +5681,10 @@
     }
     if (msgKeys) {
       msgKeys.style.display = "block";
-      msgKeys.innerHTML = victory
+      msgKeys.innerHTML = (victory
         ? "R — run it back &nbsp;·&nbsp; DualSense ✕ also restarts<br>SHARE CARD — opens X with the run image"
-        : "R — try again &nbsp;·&nbsp; DualSense ✕ restarts<br>SHARE CARD — opens X with the run image";
+        : "R — try again &nbsp;·&nbsp; DualSense ✕ restarts<br>SHARE CARD — opens X with the run image")
+        + `<br>SEED ${runSeed || "----"} · ${mutatorLabel(runMutator)}`;
     }
     startBtn.textContent = victory ? "PLAY AGAIN" : "RISE AGAIN";
     if (shareBtn) {
@@ -5543,6 +5724,7 @@
         "L stick move · R stick look · L2 aim · R2/□ shoot · ✕ jump · ○/R1 weapons";
     }
     startBtn.textContent = "ENTER THE ARENA";
+    syncTitleRunOpts();
   }
 
   function castRay(rayDirX, rayDirY) {
@@ -6243,7 +6425,7 @@
         let dark = v > 0.35 ? Math.min(0.5, (v - 0.35) * 1.1) : 0;
         let addR = 0, addG = 0, addB = 0, mulR = 1 - dark, mulG = 1 - dark, mulB = 1 - dark;
         if (needHurt) {
-          const bleed = (PLAYER_MAX_HP - player.hp) / (PLAYER_MAX_HP * 3);
+          const bleed = (playerMaxHp() - player.hp) / (playerMaxHp() * 3);
           addR += bleed * 90;
           mulG *= (1 - bleed * 0.45);
           mulB *= (1 - bleed * 0.45);
@@ -6764,8 +6946,10 @@
         if (musicMenuOpen) {
           selectTrack(musicMenuIndex, true);
           musicMenuOpen = false;
-        } else if (!running) restartGame();
-        else jumpBuf = true;
+        } else if (!running) {
+          if (msgEl.classList.contains("title-mode")) startGame();
+          else restartGame();
+        } else jumpBuf = true;
       }
       // Options (9) = restart · long-hold not needed
       if (padEdge("options", padPressed(gp, 9))) {
@@ -7348,6 +7532,7 @@
     if (msgKeys) msgKeys.style.display = "none";
     startBtn.textContent = "ENTER THE ARENA";
     if (!getGamepad()) canvas.requestPointerLock?.();
+    killMsgs.unshift({ text: `SEED ${runSeed} · ${mutatorLabel(runMutator)}`, t: 3.2 });
 
     preloadAudioAssets().then((st) => {
       const tr = st && st.tracks ? st.tracks : 0;
@@ -7463,7 +7648,8 @@
     }
     if (e.code === "KeyR") {
       e.preventDefault();
-      restartGame();
+      if (!running && msgEl.classList.contains("title-mode")) startGame();
+      else restartGame();
     }
     // [ / ] cycle internal render resolution (also sets auto-quality ceiling)
     if (e.code === "BracketLeft") { e.preventDefault(); cycleResolution(-1); }
@@ -7499,6 +7685,7 @@
   });
 
   function startGame() {
+    commitTitleOptions();
     restartGame();
   }
   startBtn.addEventListener("click", (e) => {
@@ -7512,7 +7699,52 @@
       shareRunCard();
     });
   }
+  const titleBtn = document.getElementById("titleBtn");
+  if (titleBtn) {
+    titleBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      running = false;
+      dead = false;
+      won = false;
+      document.exitPointerLock?.();
+      showTitle();
+    });
+  }
+  const mutRow = document.getElementById("mutRow");
+  if (mutRow) {
+    mutRow.addEventListener("click", (e) => {
+      const btn = e.target.closest(".mut-btn");
+      if (!btn) return;
+      runMutator = parseMutator(btn.getAttribute("data-mut"));
+      syncTitleRunOpts();
+    });
+  }
+  const seedInput = document.getElementById("seedInput");
+  if (seedInput) {
+    seedInput.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.code === "Enter" || e.key === "Enter") {
+        e.preventDefault();
+        startGame();
+      }
+    });
+    seedInput.addEventListener("keyup", (e) => e.stopPropagation());
+    seedInput.addEventListener("input", () => {
+      seedInput.value = normalizeSeed(seedInput.value);
+    });
+  }
+  const seedRoll = document.getElementById("seedRoll");
+  if (seedRoll) {
+    seedRoll.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      runSeed = rollSeed();
+      if (seedInput) seedInput.value = runSeed;
+    });
+  }
 
+  parseRunQuery();
   resetGame();
   running = false;
   showTitle();

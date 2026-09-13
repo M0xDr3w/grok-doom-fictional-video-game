@@ -23,7 +23,13 @@ export default function handler(request) {
   const wave = param(url, "w", "1");
   const best = param(url, "b", kills);
   const win = param(url, "v", "0") === "1";
-  const qs = `k=${encodeURIComponent(kills)}&t=${encodeURIComponent(time)}&w=${encodeURIComponent(wave)}&b=${encodeURIComponent(best)}&v=${win ? "1" : "0"}`;
+  const seed = param(url, "s", "").toUpperCase();
+  const mut = param(url, "m", "standard").toLowerCase();
+  const qs = `k=${encodeURIComponent(kills)}&t=${encodeURIComponent(time)}&w=${encodeURIComponent(wave)}&b=${encodeURIComponent(best)}&v=${win ? "1" : "0"}&s=${encodeURIComponent(seed)}&m=${encodeURIComponent(mut)}`;
+  const playQs = [];
+  if (seed) playQs.push("s=" + encodeURIComponent(seed));
+  if (mut && mut !== "standard") playQs.push("m=" + encodeURIComponent(mut));
+  const play = PLAY + (playQs.length ? "?" + playQs.join("&") : "");
   const image = `${origin}/api/og?${qs}`;
   const title = win
     ? `RIP AND TEAR — ${kills} kills in GROK DOOM`
@@ -47,11 +53,11 @@ export default function handler(request) {
 <meta name="twitter:title" content="${esc(title)}" />
 <meta name="twitter:description" content="${esc(desc)}" />
 <meta name="twitter:image" content="${esc(image)}" />
-<meta http-equiv="refresh" content="0;url=${PLAY}" />
+<meta http-equiv="refresh" content="0;url=${play}" />
 </head>
 <body style="background:#0a0a0a;color:#ddd;font-family:Courier New,monospace;padding:40px">
 <p>GROK DOOM — fictional video game</p>
-<p><a href="${PLAY}" style="color:#ffb000">${PLAY}</a></p>
+<p><a href="${esc(play)}" style="color:#ffb000">${esc(play)}</a></p>
 </body>
 </html>`;
 

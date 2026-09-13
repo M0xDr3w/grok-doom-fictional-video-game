@@ -7,7 +7,7 @@ function param(url, key, fallback) {
   return String(v).slice(0, 24);
 }
 
-function cardElement({ kills, time, wave, best, win }) {
+function cardElement({ kills, time, wave, best, win, seed, mutator }) {
   const headline = win ? "RIP AND TEAR" : "YOU DIED";
   const blood = "#c41e3a";
   const amber = "#ffb000";
@@ -103,8 +103,17 @@ function cardElement({ kills, time, wave, best, win }) {
     ),
     React.createElement(
       "div",
-      { style: { display: "flex", justifyContent: "flex-end", fontSize: 20, letterSpacing: 2, color: amber } },
-      "grokdoom.vercel.app"
+      { style: { display: "flex", justifyContent: "space-between", width: "100%", alignItems: "flex-end" } },
+      React.createElement(
+        "div",
+        { style: { display: "flex", fontSize: 18, letterSpacing: 2, color: "#888888" } },
+        `SEED ${seed || "----"} · ${mutator || "STANDARD"}`
+      ),
+      React.createElement(
+        "div",
+        { style: { display: "flex", fontSize: 20, letterSpacing: 2, color: amber } },
+        "grokdoom.vercel.app"
+      )
     )
   );
 }
@@ -119,9 +128,12 @@ export default async function handler(req, res) {
     const wave = param(url, "w", "1");
     const best = param(url, "b", kills);
     const win = param(url, "v", "0") === "1";
+    const seed = param(url, "s", "----").toUpperCase();
+    const mutRaw = param(url, "m", "standard").toLowerCase();
+    const mutator = ({ glass: "GLASS CANNON", sprint: "HELL SPRINT", packed: "PACKED", standard: "STANDARD" }[mutRaw]) || "STANDARD";
 
     const image = new ImageResponse(
-      cardElement({ kills, time, wave, best, win }),
+      cardElement({ kills, time, wave, best, win, seed, mutator }),
       { width: 1200, height: 630 }
     );
     const buf = Buffer.from(await image.arrayBuffer());
