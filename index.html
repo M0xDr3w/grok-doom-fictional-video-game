@@ -550,7 +550,7 @@
     <div id="hud">
       <div class="stat" id="statHp">
         <span class="label">HEALTH</span>
-        <b id="hp">5/5</b>
+        <b id="hp">7/7</b>
         <span class="sub" id="buffLine">NO BUFFS</span>
       </div>
       <div class="stat" id="statWeap">
@@ -840,7 +840,7 @@
       maxWaves: 6,
       // Escalation toward the lord (boss still triggers on kill count)
       waveTable: [
-        { imps: 4, cacos: 0, barons: 0 },
+        { imps: 3, cacos: 0, barons: 0 },
         { imps: 7, cacos: 2, barons: 0 },
         { imps: 7, cacos: 2, barons: 1 },
         { imps: 8, cacos: 3, barons: 1 },
@@ -1053,7 +1053,7 @@
   const STEP_UP = 0.4;
   const PLAYER_R = 0.18;
   const WATER_SPEED = 0.55;
-  const PLAYER_MAX_HP = 5;   // player lives on a 1–5 health scale
+  const PLAYER_MAX_HP = 7;   // player lives on a 1–7 health scale
   const LAVA_DMG = 1;        // 1 heart per lava tick
   const LAVA_TICK = 0.85;
   const SEED_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -3856,7 +3856,7 @@
     }
     // Opening wave: slower close so the player can read the arena
     if (!opts.boss && wave <= 1) {
-      base.speed *= 0.62;
+      base.speed *= 0.48;
     }
     // Later waves: slight bulk (fire rate stays mostly sane)
     if (!opts.boss && wave >= 3) {
@@ -4482,13 +4482,13 @@
     for (let i = 0; i < spec.imps; i++) roster.push("imp");
     for (let i = 0; i < spec.cacos; i++) roster.push("cacodemon");
     for (let i = 0; i < spec.barons; i++) roster.push("baron");
-    const stagger = n === 1 && roster.length > 3;
-    const immediate = stagger ? 3 : roster.length;
+    const stagger = n === 1 && roster.length > 2;
+    const immediate = stagger ? 2 : roster.length;
     for (let i = 0; i < immediate; i++) spawnEnemy(roster[i]);
     if (stagger) {
       const rest = roster.length - immediate;
       for (let i = 0; i < rest; i++) {
-        spawnQueue.push({ kind: roster[immediate + i], t: ((i + 1) / rest) * 1.5 });
+        spawnQueue.push({ kind: roster[immediate + i], t: ((i + 1) / rest) * 2.2 });
       }
     }
     if (barrels.filter(b => b.alive).length < 3) spawnBarrels();
@@ -4792,7 +4792,7 @@
     if (hpEl) hpEl.textContent = `${hp}/${maxHp}`;
     if (statHpEl) {
       statHpEl.classList.toggle("hp-low", hp <= 2);
-      statHpEl.classList.toggle("hp-mid", hp === 3);
+      statHpEl.classList.toggle("hp-mid", hp > 2 && hp <= 4);
       statHpEl.classList.toggle("buff-active", player.buffs.rage > 0 || player.buffs.haste > 0 || player.armor > 0);
     }
     if (killsEl) killsEl.textContent = String(kills);
@@ -4854,9 +4854,9 @@
     if (!running && !dead) return;
     const maxHp = playerMaxHp();
     const hp = Math.max(0, Math.min(maxHp, Math.ceil(player.hp)));
-    const hr = hp <= 2 ? 255 : hp === 3 ? 255 : 70;
-    const hg = hp <= 2 ? 55 : hp === 3 ? 200 : 255;
-    const hb = hp <= 2 ? 55 : hp === 3 ? 40 : 95;
+    const hr = hp <= 2 ? 255 : hp <= 4 ? 255 : 70;
+    const hg = hp <= 2 ? 55 : hp <= 4 ? 200 : 255;
+    const hb = hp <= 2 ? 55 : hp <= 4 ? 40 : 95;
 
     // Layout (top → bottom): label row · pip row · value row — nothing overlaps
     const pipW = 12, pipH = 10, gap = 3;
@@ -4961,7 +4961,7 @@
     drawText3(ox + ((bw - tw) / 2) | 0, oy + 5, label, 255, 240, 200, 1);
   }
 
-  // Integer hit-point damage (1–5 scale). Armor absorbs whole hits first.
+  // Integer hit-point damage (1–7 scale). Armor absorbs whole hits first.
   function damagePlayer(amount) {
     let dmg = Math.max(1, Math.round(amount));
     let armored = 0;
@@ -5709,7 +5709,7 @@
       msgBlurb.style.display = "block";
       msgBlurb.innerHTML =
         "Hell Arena → 15 kills → Hell Lord → Iron Citadel (4 waves)<br>" +
-        "1–5 HP · L2 aim · R2 shoot · flanks, vaults &amp; risk loot";
+        "1–7 HP · L2 aim · R2 shoot · flanks, vaults &amp; risk loot";
     }
     msgScore.style.display = "none";
     msgScore.innerHTML = "";
