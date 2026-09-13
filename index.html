@@ -572,14 +572,19 @@
     <div id="msg" class="title-mode">
       <div class="tag" id="msgTag">ARENA SHOOTER</div>
       <h2 id="msgTitle">GROK DOOM</h2>
-      <p id="msgBody">Clear Hell Arena. Survive the Hell Lord. Conquer the Iron Citadel.</p>
+      <p id="msgBody">Clear Hell Arena. Survive the Citadel. Face the Ash Preacher.</p>
       <div class="blurb" id="msgBlurb">
-        Hell Arena → 15 kills → Hell Lord (3 phases) → Iron Citadel (4 waves)<br>
-        Imp charges · Caco snipes · Baron tanks · L2 aim · R2 shoot
+        Hell Arena → Iron Citadel → Ash Cathedral<br>
+        Jump to any arena from the title · L2 aim · R2 shoot
       </div>
       <div id="msgScore" class="stats" style="display:none"></div>
       <div id="msgRecord" class="record" style="display:none"></div>
       <div id="runOpts">
+        <div class="mut-row" id="arenaRow">
+          <button type="button" class="mut-btn on" data-arena="0">HELL ARENA</button>
+          <button type="button" class="mut-btn" data-arena="1">IRON CITADEL</button>
+          <button type="button" class="mut-btn" data-arena="2">ASH CATHEDRAL</button>
+        </div>
         <div class="mut-row" id="mutRow">
           <button type="button" class="mut-btn on" data-mut="standard">STANDARD</button>
           <button type="button" class="mut-btn" data-mut="glass">GLASS CANNON</button>
@@ -607,7 +612,7 @@
       </div>
     </div>
   </div>
-  <footer>Hell Arena (15 kills → Lord · 3 phases) → Iron Citadel (4 waves) · progress bar under HP · <kbd>L2</kbd> aim · <kbd>R2</kbd> fire</footer>
+  <footer>Hell Arena → Iron Citadel → Ash Cathedral · jump from title · <kbd>L2</kbd> aim · <kbd>R2</kbd> fire</footer>
 </div>
 <script>
 (() => {
@@ -832,6 +837,7 @@
       // L1 — The Crucible: spawn yard → gate → ring arena → flanks → north altar
       id: 1,
       name: "HELL ARENA",
+      slug: "hell",
       fog: 14.5,
       ambient: 0.95,
       fogRgb: [1.04, 0.96, 0.92],
@@ -841,11 +847,11 @@
       // Escalation toward the lord (boss still triggers on kill count)
       waveTable: [
         { imps: 3, cacos: 0, barons: 0 },
-        { imps: 7, cacos: 2, barons: 0 },
-        { imps: 7, cacos: 2, barons: 1 },
-        { imps: 8, cacos: 3, barons: 1 },
-        { imps: 8, cacos: 3, barons: 1 },
-        { imps: 8, cacos: 4, barons: 2 },
+        { imps: 5, cacos: 1, barons: 0 },
+        { imps: 5, cacos: 2, barons: 0 },
+        { imps: 6, cacos: 2, barons: 1 },
+        { imps: 6, cacos: 2, barons: 1 },
+        { imps: 7, cacos: 3, barons: 1 },
       ],
       // Rooms: S yard (y14) · gate (y12) · ring (y6–10) · W/E galleries · N altar (y1–3)
       map: [
@@ -938,6 +944,8 @@
       // L2 — Iron Citadel: west entry → cross halls → corner bunkers → core lamps
       id: 2,
       name: "IRON CITADEL",
+      slug: "citadel",
+      bossScout: "caco",
       fog: 15.5,
       ambient: 0.88,
       fogRgb: [0.93, 0.97, 1.04],
@@ -945,10 +953,10 @@
       bossAtKills: 999,
       maxWaves: 4,
       waveTable: [
-        { imps: 6, cacos: 2, barons: 0 },
-        { imps: 8, cacos: 2, barons: 1 },
-        { imps: 8, cacos: 3, barons: 1 },
-        { imps: 8, cacos: 4, barons: 2 },
+        { imps: 4, cacos: 1, barons: 0 },
+        { imps: 5, cacos: 2, barons: 0 },
+        { imps: 6, cacos: 2, barons: 1 },
+        { imps: 6, cacos: 3, barons: 1 },
       ],
       map: [
         [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
@@ -1031,9 +1039,108 @@
         [8.0, 13.7, "warn"],
       ],
     },
+    {
+      id: 3,
+      name: "ASH CATHEDRAL",
+      slug: "ash",
+      fog: 16.2,
+      ambient: 0.9,
+      fogRgb: [1.08, 0.9, 0.72],
+      spawn: { x: 8.0, y: 14.2, a: -Math.PI / 2 },
+      bossAtKills: 999,
+      maxWaves: 4,
+      bossKind: "preacher",
+      bossName: "ASH PREACHER",
+      bossBanner: "CATHEDRAL BOSS",
+      waveTable: [
+        { imps: 3, cacos: 2, barons: 0 },
+        { imps: 4, cacos: 2, barons: 0 },
+        { imps: 4, cacos: 3, barons: 1 },
+        { imps: 5, cacos: 3, barons: 1 },
+      ],
+      // Long nave looking north to the gold altar; stained glass on the outer walls
+      map: [
+        [1,1,1,1,1,1,3,3,3,3,1,1,1,1,1,1],
+        [1,2,0,0,0,0,0,4,4,0,0,0,0,0,2,1],
+        [1,2,0,3,0,0,0,0,0,0,0,0,3,0,2,1],
+        [1,2,0,0,0,0,0,0,0,0,0,0,0,0,2,1],
+        [1,2,0,0,3,0,0,0,0,0,0,3,0,0,2,1],
+        [1,2,0,0,0,0,0,0,0,0,0,0,0,0,2,1],
+        [1,2,0,3,0,0,0,4,4,0,0,0,3,0,2,1],
+        [1,2,0,0,0,0,0,0,0,0,0,0,0,0,2,1],
+        [1,2,0,0,0,0,0,0,0,0,0,0,0,0,2,1],
+        [1,2,0,3,0,0,0,0,0,0,0,0,3,0,2,1],
+        [1,2,0,0,0,0,0,0,0,0,0,0,0,0,2,1],
+        [1,2,0,0,3,0,0,0,0,0,0,3,0,0,2,1],
+        [1,2,0,0,0,0,0,4,4,0,0,0,0,0,2,1],
+        [1,1,0,0,1,0,0,0,0,0,0,1,0,0,1,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      ],
+      floorZ: [
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      ],
+      surface: [
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,2,0,0,0,0,0,0,0,0,0,0,2,0,0],
+        [0,0,2,0,0,0,0,0,0,0,0,0,0,2,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,2,0,0,0,0,0,0,0,0,0,0,2,0,0],
+        [0,0,2,0,0,0,0,0,0,0,0,0,0,2,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      ],
+      waterfalls: [],
+      barrels: [
+        [5.5, 4.5], [10.5, 4.5], [5.5, 11.5], [10.5, 11.5],
+        [3.5, 7.5], [12.5, 7.5], [7.5, 2.5], [8.5, 2.5],
+        [4.5, 9.5], [11.5, 9.5],
+      ],
+      pickups: [
+        [8.0, 13.5, "health"],
+        [3.5, 12.5, "armor"], [12.5, 12.5, "health"],
+        [8.0, 8.0, "chaingun"],
+        [8.0, 2.5, "rocket"],
+        [2.5, 6.5, "rage"], [13.5, 6.5, "haste"],
+        [5.5, 6.5, "armor"], [10.5, 6.5, "health"],
+      ],
+      trees: [],
+      bushes: [
+        [2.5, 14.3], [13.5, 14.3], [2.5, 1.6], [13.5, 1.6],
+      ],
+      fungi: [[2.5, 3.5], [13.5, 3.5], [2.5, 10.5], [13.5, 10.5]],
+      signs: [
+        [6.5, 13.5, "warn"], [9.5, 13.5, "warn"],
+        [8.0, 1.6, "rip"], [3.5, 8.0, "exit"], [12.5, 8.0, "warn"],
+      ],
+    },
   ];
 
   let levelIdx = 0;
+  let startArenaIdx = 0;
   let MAP = LEVELS[0].map;
   let FLOOR_Z = LEVELS[0].floorZ;
   let SURFACE = LEVELS[0].surface;
@@ -1119,6 +1226,12 @@
     row.querySelectorAll(".mut-btn").forEach((btn) => {
       btn.classList.toggle("on", btn.getAttribute("data-mut") === runMutator);
     });
+    const arenas = document.getElementById("arenaRow");
+    if (arenas) {
+      arenas.querySelectorAll(".mut-btn").forEach((btn) => {
+        btn.classList.toggle("on", (btn.getAttribute("data-arena") | 0) === startArenaIdx);
+      });
+    }
   }
   function commitTitleOptions() {
     const input = document.getElementById("seedInput");
@@ -1131,6 +1244,8 @@
       const q = new URLSearchParams();
       q.set("s", runSeed);
       if (runMutator !== "standard") q.set("m", runMutator);
+      const slug = (LEVELS[startArenaIdx] && LEVELS[startArenaIdx].slug) || "hell";
+      if (startArenaIdx > 0) q.set("a", slug);
       history.replaceState(null, "", "?" + q.toString());
     } catch (_) {}
   }
@@ -1140,6 +1255,13 @@
       const s = normalizeSeed(q.get("s") || "");
       if (s) runSeed = s;
       if (q.get("m")) runMutator = parseMutator(q.get("m"));
+      const slugs = { hell: 0, citadel: 1, ash: 2 };
+      const a = (q.get("a") || "").toLowerCase();
+      if (a && slugs[a] != null) startArenaIdx = slugs[a];
+      else if (q.get("l") != null) {
+        const n = parseInt(q.get("l"), 10);
+        if (n >= 0 && n < LEVELS.length) startArenaIdx = n;
+      }
     } catch (_) {}
   }
 
@@ -1319,6 +1441,89 @@
   // 1 brick · 2 metal wall · 3 tech · 5 fence/riser (ledge face)
   const WALL_TEX = { 1: texBrick, 2: texMetal, 3: texTech, 5: texFence };
 
+  // Ash Cathedral — distinct from Hell Arena brick / Citadel metal
+  const texAsh = makeTex((x, y) => {
+    const brickW = 16, brickH = 10;
+    const row = (y / brickH) | 0;
+    const ox = (row % 2) * (brickW / 2);
+    const bx = ((x + ox) / brickW) | 0, by = row;
+    const lx = (x + ox) % brickW, ly = y % brickH;
+    const grout = lx === 0 || ly === 0;
+    const n = hash(bx, by);
+    let r = 48 + n * 22, g = 38 + n * 12, b = 32 + n * 8;
+    if (grout) { r = 120; g = 82; b = 28; } // gold grout
+    if (lx === 1 || ly === 1) { r *= 0.7; g *= 0.7; b *= 0.7; }
+    if (hash(x, y) > 0.9) { r *= 0.55; g *= 0.5; b *= 0.45; } // soot
+    if (hash(x * 3, y * 5) > 0.96) { r = 160; g = 110; b = 40; } // embers
+    return [r, g, b];
+  });
+  const texStain = makeTex((x, y) => {
+    const band = (x / 8) | 0;
+    const pane = hash(band, (y / 16) | 0);
+    const lead = x % 8 === 0 || y % 16 === 0 || y % 16 === 15;
+    let r, g, b;
+    const hue = pane * 4;
+    if (hue < 1) { r = 180; g = 24; b = 36; }       // crimson
+    else if (hue < 2) { r = 210; g = 150; b = 20; } // gold
+    else if (hue < 3) { r = 28; g = 70; b = 170; }  // cobalt
+    else { r = 90; g = 28; b = 110; }               // violet
+    const glow = 0.75 + 0.25 * Math.sin((y / 8) + band);
+    r *= glow; g *= glow; b *= glow;
+    if (lead) { r = 18; g = 14; b = 12; }
+    if (y < 4 || y > 59) { r *= 0.35; g *= 0.35; b *= 0.35; }
+    return [r, g, b];
+  });
+  const texGold = makeTex((x, y) => {
+    const panel = 16, px = x % panel, py = y % panel;
+    let v = 70 + hash((x / panel) | 0, (y / panel) | 0) * 28;
+    if (px === 0 || py === 0) v = 28;
+    if (px === 1 || py === 1) v = 90;
+    const gold = px === 2 || py === 2 || px === 14 || py === 14;
+    let r = v * 0.7, g = v * 0.45, b = v * 0.22;
+    if (gold) { r = 190; g = 140; b = 40; }
+    if ((px === 8 && py > 3 && py < 13) || (py === 8 && px > 3 && px < 13)) {
+      r = 210; g = 160; b = 50;
+    }
+    if (hash(x, y) > 0.93) { r *= 0.5; g *= 0.45; b *= 0.4; }
+    return [r, g, b];
+  });
+  const texAshFloor = makeTex((x, y) => {
+    const gsz = 16, gx = x % gsz, gy = y % gsz;
+    const tile = hash((x / gsz) | 0, (y / gsz) | 0);
+    let v = 42 + tile * 16;
+    const edge = Math.min(gx, gsz - 1 - gx, gy, gsz - 1 - gy);
+    if (edge === 0) { v = 90; } // gold inlay
+    else if (edge === 1) v *= 0.75;
+    v += hash(x >> 1, y >> 1) * 8 - 4;
+    return [v * 1.05, v * 0.78, v * 0.52];
+  });
+  const texAshCeil = makeTex((x, y) => {
+    let v = 28 + hash(x >> 2, y >> 2) * 14;
+    if ((x + y) % 24 < 2) { return [110, 78, 24]; } // vault ribs
+    if (y > 26 && y < 38) v = 18;
+    return [v * 0.95, v * 0.55, v * 0.42];
+  });
+
+  function wallTex(texId) {
+    const remap = currentLevel() && currentLevel().wallTex;
+    if (remap && remap[texId]) return remap[texId];
+    return WALL_TEX[texId] || texBrick;
+  }
+  function floorTex() {
+    return (currentLevel() && currentLevel().floorTex) || texFloor;
+  }
+  function ceilTex() {
+    return (currentLevel() && currentLevel().ceilTex) || texCeil;
+  }
+  {
+    const cathed = LEVELS.find((L) => L.slug === "ash");
+    if (cathed) {
+      cathed.wallTex = { 1: texAsh, 2: texStain, 3: texGold };
+      cathed.floorTex = texAshFloor;
+      cathed.ceilTex = texAshCeil;
+    }
+  }
+
   // Animated water / lava — always solid (no translucent pathways)
   function sampleWaterWorld(wx, wy, shade) {
     const t = time;
@@ -1371,7 +1576,7 @@
     } else if (surf === 2) {
       [r, g, b] = sampleLavaWorld(floorX, floorY, s);
     } else {
-      [r, g, b] = sampleTex(texFloor, floorX * TEX, floorY * TEX, s);
+      [r, g, b] = sampleTex(floorTex(), floorX * TEX, floorY * TEX, s);
       if (raised) {
         r = Math.min(255, r + 6);
         g = Math.min(255, g + 3);
@@ -1543,6 +1748,45 @@
       ". . . G2 G1 . . G1 G1 G1 G2 . . . .",
       ". . . G3 G2 . . . . G2 G3 . . . . .",
       ". . . G3 . . . . . . . G3 . . . .",
+      ". . . . . . . . . . . . . . . .",
+      ". . . . . . . . . . . . . . . .",
+    ],
+  ]);
+
+  const SPR_PREACHER = sheet([
+    [
+      ". . . . . . Y Y Y Y . . . . . .",
+      ". . . . . Y W Y Y W Y . . . . .",
+      ". . . . Y Y Y Y Y Y Y Y . . . .",
+      ". . . D D BR BR BR BR BR BR D D . . .",
+      ". . D BR BR BR Y Y Y Y BR BR BR D . .",
+      ". . BR BR BR Y W W W W Y BR BR BR . .",
+      ". . BR BR BR Y W K K W Y BR BR BR . .",
+      ". . BR BR BR BR Y Y Y Y BR BR BR BR . .",
+      ". . D BR BR BR BR BR BR BR BR BR BR D . .",
+      ". . . D BR BR D D D D BR BR D . . .",
+      ". . . . D R R . . R R D . . . .",
+      ". . . . Y D BR BR BR BR D Y . . . .",
+      ". . . Y . . D D D D . . Y . . .",
+      ". . Y . . . . . . . . . . Y . .",
+      ". . . . . . . . . . . . . . . .",
+      ". . . . . . . . . . . . . . . .",
+    ],
+    [
+      ". . . . . Y Y Y Y Y Y . . . . .",
+      ". . . . Y W Y Y Y W Y Y . . . .",
+      ". . . Y Y Y Y Y Y Y Y Y Y . . .",
+      ". . D D BR BR BR BR BR BR BR BR D D . .",
+      ". D BR BR BR Y Y Y Y Y BR BR BR D . .",
+      ". BR BR BR Y W W W W W Y BR BR BR . .",
+      ". BR BR BR Y W K K K W Y BR BR BR . .",
+      ". BR BR BR BR Y Y Y Y Y BR BR BR BR . .",
+      ". D BR BR BR BR BR BR BR BR BR BR BR D . .",
+      ". . D BR BR D D D D D BR BR D . . .",
+      ". . . D R R R . R R R D . . . .",
+      ". . . Y D BR BR BR BR BR D Y . . . .",
+      ". . Y . . D D D D D . . Y . . .",
+      ". Y . . . . . . . . . . . Y . .",
       ". . . . . . . . . . . . . . . .",
       ". . . . . . . . . . . . . . . .",
     ],
@@ -3815,12 +4059,22 @@
   let enemyShotGate = 0;
 
   function spawnEnemy(kind = "imp", opts = {}) {
-    const p = randomEmpty();
+    const p = (opts.x != null && opts.y != null)
+      ? { x: opts.x, y: opts.y, z: floorH(opts.x, opts.y) }
+      : randomEmpty();
+    const preacher = kind === "preacher" || opts.preacher;
     // Role kit:
     //  imp  = charger (rush melee, short range, rare bolts)
     //  caco = glass sniper (holds range, frequent shots, kites)
     //  baron = tank (slow, multi-bolt, high HP)
-    const base = kind === "baron"
+    //  preacher = cathedral sniper-lord
+    const base = preacher
+      ? {
+          hp: 42, speed: 0.9, dmg: 1, r: 0.44, name: "PREACHER", score: 4, kind: "preacher",
+          sprites: SPR_PREACHER, rangeMin: 4.0, rangeMax: 14.0, shootCd: 1.9, projSpeed: 4.1, projDmg: 2,
+          role: "sniper", preferRange: 8.5, seeNeed: 0.3, meleeReach: 0.6, multiShot: true, preacher: true,
+        }
+      : kind === "baron"
       ? {
           hp: 95, speed: 0.95, dmg: 2, r: 0.4, name: "BARON", score: 3, kind: "baron",
           sprites: SPR_BARON, rangeMin: 2.0, rangeMax: 7.0, shootCd: 3.4, projSpeed: 3.9, projDmg: 2,
@@ -3837,7 +4091,24 @@
           sprites: SPR_IMP, rangeMin: 0.9, rangeMax: 5.5, shootCd: 3.8, projSpeed: 5.0, projDmg: 1,
           role: "charger", preferRange: 1.4, seeNeed: 0.25, meleeReach: 0.78, multiShot: false,
         };
-    if (opts.boss) {
+    if (opts.boss && preacher) {
+      base.hp = 200;
+      base.speed = 0.85;
+      base.dmg = 2;
+      base.r = 0.5;
+      base.name = "ASH PREACHER";
+      base.score = 10;
+      base.shootCd = 1.7;
+      base.projSpeed = 4.0;
+      base.projDmg = 2;
+      base.rangeMin = 3.5;
+      base.rangeMax = 16;
+      base.role = "boss";
+      base.preferRange = 9;
+      base.seeNeed = 0.25;
+      base.meleeReach = 0.7;
+      base.preacher = true;
+    } else if (opts.boss) {
       base.hp = 220;
       base.speed = 1.15;
       base.dmg = 2;
@@ -3872,7 +4143,8 @@
       seeT: 0, // how long they've had continuous clear LOS
       frame: Math.random() * 2, bob: Math.random() * 6,
       strafe: Math.random() < 0.5 ? 1 : -1,
-      scaleMul: opts.boss ? 1.28 : (kind === "baron" ? 1.08 : undefined),
+      scaleMul: opts.boss ? (preacher ? 1.38 : 1.28) : (kind === "baron" ? 1.08 : undefined),
+      preacher: !!preacher,
       // Boss-only combat state
       phase: 1,
       phaseAnnounced: false,
@@ -3909,7 +4181,7 @@
       const hp01 = b ? Math.max(0, b.hp / (b.maxHp || 1)) : 0;
       return {
         mode: "boss",
-        title: b ? (b.phase >= 3 ? "FINAL FORM" : b.phase >= 2 ? "ENRAGED" : "HELL LORD") : "BOSS",
+        title: b ? (b.phase >= 3 ? "FINAL FORM" : b.phase >= 2 ? "ENRAGED" : (b.name || "BOSS")) : "BOSS",
         fill: hp01,
         sub: b ? `HP ${Math.ceil(b.hp)}/${b.maxHp}` : "—",
         alive,
@@ -3972,9 +4244,10 @@
   function spawnEnemyBolt(e, ang, opts = {}) {
     const sp = (e.projSpeed || 5) * (opts.speedMul || 1);
     const ux = Math.cos(ang), uy = Math.sin(ang);
-    const z = (e.z || 0) + (e.kind === "caco" ? 0.55 : e.boss ? 0.5 : 0.32);
-    const isBaron = e.boss || e.kind === "baron";
+    const z = (e.z || 0) + (e.kind === "caco" || e.preacher ? 0.55 : e.boss ? 0.5 : 0.32);
+    const isBaron = (e.boss && !e.preacher) || e.kind === "baron";
     const isCaco = e.kind === "caco";
+    const isPreach = !!e.preacher;
     projectiles.push({
       x: e.x + ux * 0.45,
       y: e.y + uy * 0.45,
@@ -3983,14 +4256,14 @@
       vy: uy * sp,
       life: opts.life || 2.6,
       dmg: opts.dmg != null ? opts.dmg : (e.projDmg || 1),
-      r: opts.r || (isBaron ? 0.12 : 0.08),
+      r: opts.r || (isPreach ? 0.16 : isBaron ? 0.12 : 0.08),
       kind: e.kind,
       boss: !!e.boss,
       frame: Math.random() * 2,
       spin: Math.random() * Math.PI * 2,
-      sprites: isCaco ? SPR_PROJ_CACO : isBaron ? SPR_PROJ_BARON : SPR_PROJ_IMP,
-      color: opts.color || (isCaco ? [255, 70, 190] : isBaron ? [170, 70, 255] : [255, 160, 40]),
-      glow: opts.glow || (isCaco ? [255, 100, 220] : isBaron ? [140, 60, 255] : [255, 120, 30]),
+      sprites: isPreach || isCaco ? SPR_PROJ_CACO : isBaron ? SPR_PROJ_BARON : SPR_PROJ_IMP,
+      color: opts.color || (isPreach ? [255, 190, 60] : isCaco ? [255, 70, 190] : isBaron ? [170, 70, 255] : [255, 160, 40]),
+      glow: opts.glow || (isPreach ? [255, 160, 40] : isCaco ? [255, 100, 220] : isBaron ? [140, 60, 255] : [255, 120, 30]),
     });
     for (let i = 0; i < 3; i++) {
       particles.push({
@@ -4030,6 +4303,13 @@
     const p2 = e.phase >= 2;
     const p3 = e.phase >= 3;
     const roll = Math.random();
+    if (e.preacher) {
+      if (dist < 2.4) return "bolt";
+      if (p3) return roll < 0.55 ? "multi" : "bolt";
+      if (p2) return roll < 0.4 ? "multi" : "bolt";
+      if (!clearView) return "bolt";
+      return roll < 0.28 ? "multi" : "bolt";
+    }
     // Close range: prefer slam over spam-charge
     if (dist < 2.2) return roll < 0.65 ? "slam" : "rush";
     if (p3 && roll < 0.22) return "nova";
@@ -4103,46 +4383,46 @@
     // Phase 2 at half HP
     if (e.phase < 2 && e.hp <= e.maxHp * 0.5) {
       e.phase = 2;
-      e.speed = 1.45;
-      e.shootCd = 1.35;
-      e.projSpeed = 5.8;
+      e.speed = e.preacher ? 0.95 : 1.45;
+      e.shootCd = e.preacher ? 1.25 : 1.35;
+      e.projSpeed = e.preacher ? 4.6 : 5.8;
       e.patternCd = 0.4;
       if (!e.phaseAnnounced) {
         e.phaseAnnounced = true;
-        pushBanner("PHASE 2", { kind: "phase", t: 3.2, sub: "HELL LORD ENRAGED" });
-        killMsgs.unshift({ text: "HELL LORD ENRAGED", t: 3 });
+        const sub = e.preacher ? "THE SERMON BURNS" : "HELL LORD ENRAGED";
+        pushBanner("PHASE 2", { kind: "phase", t: 3.2, sub });
+        killMsgs.unshift({ text: sub, t: 3 });
         SFX.boss();
         shake = Math.max(shake, 8);
         feelHaptics("boss");
         padRumble(220, 0.55, 0.95);
-        // Summon adds once
-        for (let i = 0; i < 2; i++) spawnEnemy("imp");
-        spawnEnemy("cacodemon");
+        for (let i = 0; i < (e.preacher ? 3 : 2); i++) spawnEnemy("imp");
+        if (!e.preacher) spawnEnemy("cacodemon");
       }
     }
     // Phase 3 at 25% — final form
     if (e.phase < 3 && e.hp <= e.maxHp * 0.25) {
       e.phase = 3;
-      e.speed = 1.65;
-      e.shootCd = 1.05;
-      e.projSpeed = 6.4;
+      e.speed = e.preacher ? 1.05 : 1.65;
+      e.shootCd = e.preacher ? 1.0 : 1.05;
+      e.projSpeed = e.preacher ? 5.1 : 6.4;
       e.patternCd = 0.25;
       if (!e.phase3Announced) {
         e.phase3Announced = true;
-        pushBanner("FINAL FORM", { kind: "phase", t: 3.4, sub: "NO MERCY" });
-        killMsgs.unshift({ text: "FINAL FORM", t: 3.2 });
+        const sub = e.preacher ? "ASHEN GOSPEL" : "NO MERCY";
+        pushBanner("FINAL FORM", { kind: "phase", t: 3.4, sub });
+        killMsgs.unshift({ text: e.preacher ? "ASHEN GOSPEL" : "FINAL FORM", t: 3.2 });
         SFX.boss();
         SFX.growl(e.x, e.y);
         shake = Math.max(shake, 10);
         feelHaptics("boss", 1.3);
         hitStop = Math.max(hitStop, 0.08);
-        // Burst summon
         spawnEnemy("imp");
         spawnEnemy("imp");
-        spawnEnemy("cacodemon");
-        // Immediate nova threat
-        e.bossMove = "nova";
-        e.novaT = 0.7;
+        if (!e.preacher) spawnEnemy("cacodemon");
+        e.bossMove = e.preacher ? "multi" : "nova";
+        if (e.preacher) e.chargeT = 0.45;
+        else e.novaT = 0.7;
       }
     }
 
@@ -4392,10 +4672,12 @@
     for (const en of enemies) {
       if (en.alive) { en.alive = false; en.dying = true; en.deathT = 0.25; }
     }
-    pushBanner(levelIdx === 0 ? "BOSS FIGHT" : "CITADEL BOSS", {
-      kind: "boss", t: 3.2, sub: "HELL LORD",
+    const L = currentLevel();
+    const bossName = L.bossName || "HELL LORD";
+    pushBanner(L.bossBanner || (levelIdx === 0 ? "BOSS FIGHT" : "CITADEL BOSS"), {
+      kind: "boss", t: 3.2, sub: bossName,
     });
-    killMsgs.unshift({ text: "HELL LORD", t: 2.5 });
+    killMsgs.unshift({ text: bossName, t: 2.5 });
     if (running) {
       SFX.boss();
       combatDuck = Math.max(combatDuck, 0.95);
@@ -4404,9 +4686,12 @@
       padRumble(180, 0.4, 0.75);
     }
     // Solo duel first — phase 2 summons adds
-    spawnEnemy("baron", { boss: true });
-    // One scout only (not a full pack)
-    if (levelIdx === 1) spawnEnemy("cacodemon");
+    const kind = L.bossKind || "baron";
+    const altar = kind === "preacher"
+      ? { boss: true, preacher: true, x: 8.0, y: 2.3 }
+      : { boss: true };
+    spawnEnemy(kind, altar);
+    if (L.bossScout === "caco") spawnEnemy("cacodemon");
     // Boss drop: health + armor near spawn
     const sp = currentLevel().spawn;
     pickups.push({
@@ -4753,7 +5038,7 @@
     newRecord = false; jumpBuf = false;
     musicMenuOpen = false;
     floatTexts.length = 0;
-    loadLevel(0, { keepLoadout: false });
+    loadLevel(startArenaIdx, { keepLoadout: false });
   }
 
   function cycleWeapon(dir = 1) {
@@ -5120,7 +5405,7 @@
     e.dying = true;
     e.deathT = e.boss ? 0.95 : e.kind === "baron" ? 0.8 : 0.65;
     e.sprites = e.kind === "baron" ? SPR_BARON_DIE
-      : e.kind === "caco" ? SPR_CACO_DIE
+      : (e.kind === "caco" || e.kind === "preacher") ? SPR_CACO_DIE
       : SPR_IMP_DIE;
     e.frame = 0;
     e.chargeT = null;
@@ -5176,9 +5461,8 @@
       feelHaptics("boss");
     }
 
-    // Level-1 boss slain → Iron Citadel
-    if (wasBoss && levelIdx === 0) {
-      // Clear remaining trash after lord falls
+    if (wasBoss) {
+      bossesKilled++;
       for (const en of enemies) {
         if (en.alive && !en.boss) {
           en.alive = false;
@@ -5186,20 +5470,20 @@
           en.deathT = 0.4;
         }
       }
-      bossesKilled++;
-      killMsgs.unshift({ text: "HELL LORD FALLEN — LEVEL 2", t: 4 });
-      pushBanner("LEVEL 2", { kind: "level", t: 3.0, sub: "IRON CITADEL AWAITS" });
+      const last = LEVELS.length - 1;
+      if (levelIdx >= last) {
+        won = true; running = false; SFX.win(); showEnd(true);
+        updateHud();
+        return;
+      }
+      const next = levelIdx + 1;
+      const nxt = LEVELS[next];
+      killMsgs.unshift({ text: `${e.name || "LORD"} FALLEN — LEVEL ${next + 1}`, t: 4 });
+      pushBanner(`LEVEL ${next + 1}`, { kind: "level", t: 3.0, sub: (nxt && nxt.name ? nxt.name + " AWAITS" : "") });
       setTimeout(() => {
         if (!running || dead || won) return;
-        loadLevel(1, { keepLoadout: true });
+        loadLevel(next, { keepLoadout: true });
       }, 2200);
-      updateHud();
-      return;
-    }
-    // Level-2 boss slain → win
-    if (wasBoss && levelIdx >= 1) {
-      bossesKilled++;
-      won = true; running = false; SFX.win(); showEnd(true);
       updateHud();
       return;
     }
@@ -5216,7 +5500,7 @@
           startWave(wave + 1);
         }
       } else {
-        // Citadel: clear N waves, then boss
+        // Citadel / Cathedral: clear N waves, then boss
         if (wave >= maxW) startBossFight();
         else startWave(wave + 1);
       }
@@ -5529,7 +5813,7 @@
 
     ctx.fillStyle = "#888888";
     ctx.font = `14px ${family}`;
-    const runLine = `SEED ${runSeed || "----"} · ${mutatorLabel(runMutator)}`;
+    const runLine = `SEED ${runSeed || "----"} · ${mutatorLabel(runMutator)} · ${currentLevel().name || ""}`;
     ctx.fillText(runLine, SHARE_W / 2, 838);
     ctx.fillStyle = amber;
     ctx.font = `18px ${family}`;
@@ -5546,6 +5830,7 @@
       v: victory ? "1" : "0",
       s: runSeed || "",
       m: runMutator || "standard",
+      a: (currentLevel() && currentLevel().slug) || "hell",
     });
     return SHARE_URL + "/api/card?" + q.toString();
   }
@@ -5684,7 +5969,7 @@
       msgKeys.innerHTML = (victory
         ? "R — run it back &nbsp;·&nbsp; DualSense ✕ also restarts<br>SHARE CARD — opens X with the run image"
         : "R — try again &nbsp;·&nbsp; DualSense ✕ restarts<br>SHARE CARD — opens X with the run image")
-        + `<br>SEED ${runSeed || "----"} · ${mutatorLabel(runMutator)}`;
+        + `<br>SEED ${runSeed || "----"} · ${mutatorLabel(runMutator)} · ${currentLevel().name || ""}`;
     }
     startBtn.textContent = victory ? "PLAY AGAIN" : "RISE AGAIN";
     if (shareBtn) {
@@ -5704,11 +5989,11 @@
       msgTitle.textContent = "GROK DOOM";
       msgTitle.style.color = "var(--blood)";
     }
-    msgBody.textContent = "Clear Hell Arena. Survive the Hell Lord. Conquer the Iron Citadel.";
+    msgBody.textContent = "Clear Hell Arena. Survive the Citadel. Face the Ash Preacher.";
     if (msgBlurb) {
       msgBlurb.style.display = "block";
       msgBlurb.innerHTML =
-        "Hell Arena → 15 kills → Hell Lord → Iron Citadel (4 waves)<br>" +
+        "Hell Arena → Iron Citadel → Ash Cathedral · jump from title<br>" +
         "1–7 HP · L2 aim · R2 shoot · flanks, vaults &amp; risk loot";
     }
     msgScore.style.display = "none";
@@ -5762,7 +6047,7 @@
   }
 
   function drawWallSlice(x, dist, side, texX, texId, zBot, zTop, shadeMul, mapX = -1, mapY = -1, wx = 0, wy = 0) {
-    const tex = WALL_TEX[texId] || texBrick;
+    const tex = wallTex(texId);
     let y0 = projectY(zTop, dist);
     let y1 = projectY(zBot, dist);
     if (y0 > y1) { const t = y0; y0 = y1; y1 = t; }
@@ -5786,12 +6071,18 @@
         // bullet scorch rim
         if (chip > 0.35) { r = Math.min(255, r + 20); g = Math.min(255, g + 8); }
       }
-      // tech wall LED pulse stripe
+      // tech wall LED pulse stripe (gold pulse in the cathedral)
       if (texId === 3 && (ty > 20 && ty < 28) && (texX & 7) === 2) {
         const pulse = 0.5 + 0.5 * Math.sin(time * 10 + mapX + mapY);
-        r = Math.min(255, r + 40 * pulse);
-        g = Math.min(255, g + 180 * pulse);
-        b = Math.min(255, b + 50 * pulse);
+        if (currentLevel() && currentLevel().id === 3) {
+          r = Math.min(255, r + 180 * pulse);
+          g = Math.min(255, g + 120 * pulse);
+          b = Math.min(255, b + 20 * pulse);
+        } else {
+          r = Math.min(255, r + 40 * pulse);
+          g = Math.min(255, g + 180 * pulse);
+          b = Math.min(255, b + 50 * pulse);
+        }
       }
       [r, g, b] = addPointLightTint(r, g, b, wx, wy);
       put(x, y, r, g, b);
@@ -5842,7 +6133,7 @@
           } else {
             const floorX = player.x + d * rayDirX;
             const floorY = player.y + d * rayDirY;
-            [r, g, b] = sampleTex(texCeil, floorX * TEX, floorY * TEX, lightAt(floorX, floorY, d) * 0.85);
+            [r, g, b] = sampleTex(ceilTex(), floorX * TEX, floorY * TEX, lightAt(floorX, floorY, d) * 0.85);
           }
         }
         put(x, y, r, g, b);
@@ -7718,6 +8009,17 @@
       if (!btn) return;
       runMutator = parseMutator(btn.getAttribute("data-mut"));
       syncTitleRunOpts();
+    });
+  }
+  const arenaRow = document.getElementById("arenaRow");
+  if (arenaRow) {
+    arenaRow.querySelectorAll(".mut-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        startArenaIdx = Math.max(0, Math.min(LEVELS.length - 1, btn.getAttribute("data-arena") | 0));
+        syncTitleRunOpts();
+      });
     });
   }
   const seedInput = document.getElementById("seedInput");

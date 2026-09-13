@@ -25,10 +25,12 @@ export default function handler(request) {
   const win = param(url, "v", "0") === "1";
   const seed = param(url, "s", "").toUpperCase();
   const mut = param(url, "m", "standard").toLowerCase();
-  const qs = `k=${encodeURIComponent(kills)}&t=${encodeURIComponent(time)}&w=${encodeURIComponent(wave)}&b=${encodeURIComponent(best)}&v=${win ? "1" : "0"}&s=${encodeURIComponent(seed)}&m=${encodeURIComponent(mut)}`;
+  const arena = param(url, "a", "hell").toLowerCase();
+  const qs = `k=${encodeURIComponent(kills)}&t=${encodeURIComponent(time)}&w=${encodeURIComponent(wave)}&b=${encodeURIComponent(best)}&v=${win ? "1" : "0"}&s=${encodeURIComponent(seed)}&m=${encodeURIComponent(mut)}&a=${encodeURIComponent(arena)}`;
   const playQs = [];
   if (seed) playQs.push("s=" + encodeURIComponent(seed));
   if (mut && mut !== "standard") playQs.push("m=" + encodeURIComponent(mut));
+  if (arena && arena !== "hell") playQs.push("a=" + encodeURIComponent(arena));
   const play = PLAY + (playQs.length ? "?" + playQs.join("&") : "");
   const image = `${origin}/api/og?${qs}`;
   const title = win

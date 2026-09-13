@@ -7,7 +7,7 @@ function param(url, key, fallback) {
   return String(v).slice(0, 24);
 }
 
-function cardElement({ kills, time, wave, best, win, seed, mutator }) {
+function cardElement({ kills, time, wave, best, win, seed, mutator, arena }) {
   const headline = win ? "RIP AND TEAR" : "YOU DIED";
   const blood = "#c41e3a";
   const amber = "#ffb000";
@@ -107,7 +107,7 @@ function cardElement({ kills, time, wave, best, win, seed, mutator }) {
       React.createElement(
         "div",
         { style: { display: "flex", fontSize: 18, letterSpacing: 2, color: "#888888" } },
-        `SEED ${seed || "----"} · ${mutator || "STANDARD"}`
+        `SEED ${seed || "----"} · ${mutator || "STANDARD"} · ${arena || "HELL ARENA"}`
       ),
       React.createElement(
         "div",
@@ -131,9 +131,11 @@ export default async function handler(req, res) {
     const seed = param(url, "s", "----").toUpperCase();
     const mutRaw = param(url, "m", "standard").toLowerCase();
     const mutator = ({ glass: "GLASS CANNON", sprint: "HELL SPRINT", packed: "PACKED", standard: "STANDARD" }[mutRaw]) || "STANDARD";
+    const arenaRaw = param(url, "a", "hell").toLowerCase();
+    const arena = ({ hell: "HELL ARENA", citadel: "IRON CITADEL", ash: "ASH CATHEDRAL" }[arenaRaw]) || "HELL ARENA";
 
     const image = new ImageResponse(
-      cardElement({ kills, time, wave, best, win, seed, mutator }),
+      cardElement({ kills, time, wave, best, win, seed, mutator, arena }),
       { width: 1200, height: 630 }
     );
     const buf = Buffer.from(await image.arrayBuffer());
