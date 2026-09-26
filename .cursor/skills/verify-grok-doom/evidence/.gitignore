@@ -1,0 +1,6 @@
+*.png
+*.log
+drive-*.json
+doctor.json
+!README.md
+!.gitkeep
